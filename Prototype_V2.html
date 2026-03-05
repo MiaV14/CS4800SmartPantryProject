@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Smart Pantry</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Fredoka+One&display=swap" rel="stylesheet">
+<style>
+:root {
+  --cream: #FBF5EC;
+  --warm: #F2E0C4;
+  --tan: #E8D0B0;
+  --terracotta: #C8704A;
+  --terra-light: #E8906A;
+  --sage: #7A9E82;
+  --sage-light: #A8C4AC;
+  --mustard: #D4A83C;
+  --brown: #6A3E28;
+  --brown-mid: #9A6040;
+  --text: #3A2418;
+  --muted: #9A7860;
+  --shadow: rgba(60,30,10,0.12);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: #D8C8B0;
+  background-image:
+    radial-gradient(ellipse at 30% 20%, rgba(200,170,120,0.4) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 80%, rgba(160,120,80,0.2) 0%, transparent 50%);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Nunito', sans-serif;
+  padding: 20px;
+}
+
+/* ── PHONE SHELL ── */
+.phone {
+  width: 370px;
+  height: 780px;
+  background: var(--cream);
+  border-radius: 48px;
+  overflow: hidden;
+  position: relative;
+  box-shadow:
+    0 0 0 2px rgba(255,255,255,0.7) inset,
+    0 40px 100px rgba(60,30,10,0.35),
+    0 8px 24px rgba(60,30,10,0.2);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── STATUS BAR ── */
+.status {
+  padding: 14px 28px 4px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+/* ── TOP NAV ── */
+.topnav {
+  padding: 0 20px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.topnav-title {
+  font-family: 'Fredoka One', cursive;
+  font-size: 26px;
+  color: var(--brown);
+}
+.icon-btn {
+  width: 38px; height: 38px;
+  border-radius: 14px;
+  background: var(--warm);
+  border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  color: var(--brown);
+  font-weight: 800;
+  transition: transform 0.1s, background 0.15s;
+  box-shadow: 0 2px 8px var(--shadow);
+}
+.icon-btn:hover { transform: scale(1.05); background: var(--tan); }
+
+/* ── SCREENS ── */
+.screen {
+  flex:1; overflow:hidden; display:none; flex-direction:column;
+  position: relative;
+}
+.screen.active { display: flex; }
+.scroll { flex:1; overflow-y:auto; overflow-x:hidden; scrollbar-width:none; }
+.scroll::-webkit-scrollbar { display:none; }
+
+/* ── HOME SCREEN ── */
+
+/* Kitchen scene background */
+.kitchen-bg {
+  position: relative;
+  background: linear-gradient(180deg, #EED8B8 0%, #F5EAD8 100%);
+  padding: 16px 20px 20px;
+  overflow: visible;
+}
+
+/* Floor line */
+.kitchen-bg::after {
+  content:'';
+  position:absolute;
+  bottom:0; left:0; right:0;
+  height: 24px;
+  background: linear-gradient(180deg, #DDCBAE, #C8B898);
+  border-top: 2px solid rgba(160,120,60,0.3);
+}
+
+.kitchen-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--muted);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.appliances-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  justify-content: center;
+  position: relative;
+  z-index: 2;
+  padding-bottom: 20px;
+}
+
+/* ── ILLUSTRATED FRIDGE ── */
+.fridge-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  gap: 6px;
+  position: relative;
+}
+.fridge-wrap:hover .fridge-body { transform: scale(1.02); filter: brightness(1.03); }
+.fridge-wrap:active .fridge-body { transform: scale(0.98); }
+
+.fridge-body {
+  width: 130px;
+  height: 170px;
+  background: linear-gradient(150deg, #E8F0E8 0%, #C8D8CC 100%);
+  border-radius: 16px 16px 12px 12px;
+  position: relative;
+  border: 2.5px solid rgba(80,100,80,0.2);
+  box-shadow: 4px 8px 24px rgba(60,80,60,0.2), inset -3px -3px 8px rgba(0,0,0,0.06), inset 3px 3px 8px rgba(255,255,255,0.6);
+  transition: transform 0.2s ease, filter 0.2s ease;
+  overflow: hidden;
+}
+
+/* fridge top section */
+.fridge-body::before {
+  content: '';
+  position: absolute;
+  top:0; left:0; right:0;
+  height: 62px;
+  background: linear-gradient(150deg, #D0DED2 0%, #B8CCB8 100%);
+  border-bottom: 2px solid rgba(80,100,80,0.15);
+}
+
+/* fridge handle top */
+.fridge-handle-top {
+  position: absolute;
+  right: 14px;
+  top: 16px;
+  width: 8px;
+  height: 28px;
+  background: linear-gradient(90deg, #A0B0A0, #C8D8C8);
+  border-radius: 4px;
+  box-shadow: 1px 2px 4px rgba(0,0,0,0.15);
+}
+/* fridge handle bottom */
+.fridge-handle-bottom {
+  position: absolute;
+  right: 14px;
+  top: 82px;
+  width: 8px;
+  height: 42px;
+  background: linear-gradient(90deg, #A0B0A0, #C8D8C8);
+  border-radius: 4px;
+  box-shadow: 1px 2px 4px rgba(0,0,0,0.15);
+}
+
+/* alert dot */
+.fridge-alert {
+  position: absolute;
+  top: -6px; right: -6px;
+  width: 20px; height: 20px;
+  background: var(--terracotta);
+  border-radius: 50%;
+  border: 2px solid var(--cream);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px;
+  font-weight: 900;
+  color: white;
+  z-index: 10;
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%,100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+/* peek items inside fridge */
+.fridge-peek {
+  position: absolute;
+  bottom: 18px;
+  left: 0; right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  font-size: 18px;
+  opacity: 0.7;
+}
+
+.appliance-name {
+  font-family: 'Fredoka One', cursive;
+  font-size: 13px;
+  color: var(--brown);
+}
+.appliance-count {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+/* ── ILLUSTRATED PANTRY ── */
+.pantry-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  gap: 6px;
+}
+.pantry-wrap:hover .pantry-body { transform: scale(1.02); filter: brightness(1.03); }
+.pantry-wrap:active .pantry-body { transform: scale(0.98); }
+
+.pantry-body {
+  width: 110px;
+  height: 150px;
+  background: linear-gradient(150deg, #F0E8D4 0%, #DDD0B4 100%);
+  border-radius: 8px 8px 6px 6px;
+  position: relative;
+  border: 2.5px solid rgba(120,90,40,0.2);
+  box-shadow: 4px 8px 24px rgba(100,70,20,0.2), inset -3px -3px 8px rgba(0,0,0,0.05), inset 3px 3px 8px rgba(255,255,255,0.5);
+  transition: transform 0.2s ease, filter 0.2s ease;
+  overflow: hidden;
+}
+
+/* pantry roof triangle */
+.pantry-roof {
+  position: absolute;
+  top: -18px; left: -8px; right: -8px;
+  height: 0;
+  border-left: 63px solid transparent;
+  border-right: 63px solid transparent;
+  border-bottom: 22px solid #C8B890;
+  z-index: 5;
+}
+
+/* pantry shelves */
+.pantry-shelf {
+  position: absolute;
+  left: 10px; right: 10px;
+  height: 2px;
+  background: rgba(120,90,40,0.25);
+  border-radius: 2px;
+}
+
+/* pantry door handles */
+.pantry-door {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 2px;
+  background: rgba(120,90,40,0.2);
+  left: 50%;
+}
+.pantry-knob {
+  position: absolute;
+  width: 7px; height: 7px;
+  background: #B09060;
+  border-radius: 50%;
+  box-shadow: 1px 1px 3px rgba(0,0,0,0.2);
+}
+
+/* ── FRUIT BOWL ── */
+.bowl-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  gap: 6px;
+  position: absolute;
+  bottom: 32px;
+  left: 20px;
+}
+.bowl-wrap:hover .bowl-body { transform: scale(1.04); }
+.bowl-wrap:active .bowl-body { transform: scale(0.96); }
+
+.bowl-body {
+  width: 110px;
+  height: 70px;
+  position: relative;
+  transition: transform 0.2s ease;
+}
+
+/* bowl SVG-style using CSS */
+.bowl-dish {
+  position: absolute;
+  bottom: 0;
+  left: 5px; right: 5px;
+  height: 30px;
+  background: linear-gradient(180deg, #E8D8A0 0%, #C8B870 100%);
+  border-radius: 0 0 60px 60px;
+  border: 2px solid rgba(140,100,30,0.3);
+  box-shadow: 0 4px 12px rgba(140,100,30,0.2);
+}
+.bowl-rim {
+  position: absolute;
+  bottom: 24px;
+  left: 0; right: 0;
+  height: 12px;
+  background: linear-gradient(180deg, #F0E8B0 0%, #D8C880 100%);
+  border-radius: 50%;
+  border: 2px solid rgba(140,100,30,0.25);
+}
+.bowl-fruits {
+  position: absolute;
+  bottom: 22px;
+  left: 0; right: 0;
+  display: flex;
+  justify-content: center;
+  font-size: 22px;
+  gap: 1px;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.15));
+}
+
+/* trash can */
+.trash-wrap {
+  position: absolute;
+  bottom: 32px;
+  right: 20px;
+  cursor: pointer;
+  display: flex; flex-direction:column; align-items:center; gap:4px;
+}
+.trash-wrap:hover .trash-body { transform: scale(1.05); }
+.trash-body {
+  width: 48px;
+  transition: transform 0.15s;
+}
+.trash-can {
+  width: 40px; height: 46px;
+  background: linear-gradient(150deg, #C8C0B0, #A8A098);
+  border-radius: 4px 4px 8px 8px;
+  border: 2px solid rgba(80,70,60,0.2);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 2px 4px 10px rgba(0,0,0,0.15);
+  margin: 0 auto;
+}
+.trash-lines {
+  position: absolute;
+  top: 8px; left: 0; right: 0;
+  display: flex; justify-content:space-around; padding:0 6px;
+}
+.trash-line {
+  width: 3px; height: 26px;
+  background: rgba(60,50,40,0.2);
+  border-radius: 2px;
+}
+.trash-lid {
+  width: 48px; height: 10px;
+  background: linear-gradient(150deg, #D8D0C0, #B8B0A0);
+  border-radius: 6px 6px 3px 3px;
+  border: 2px solid rgba(80,70,60,0.15);
+  box-shadow: 2px 2px 6px rgba(0,0,0,0.1);
+  margin-bottom: 2px;
+}
+.trash-handle {
+  width: 16px; height: 6px;
+  background: #A0988A;
+  border-radius: 4px 4px 0 0;
+  border: 1.5px solid rgba(80,70,60,0.2);
+  margin: 0 auto -2px;
+}
+
+/* ── XP STRIP ── */
+.xp-strip {
+  background: linear-gradient(135deg, var(--terracotta), #B85A38);
+  margin: 0 16px 0;
+  border-radius: 16px;
+  padding: 12px 16px;
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 4px 16px rgba(180,80,40,0.3);
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.xp-strip::after {
+  content:'🌿';
+  position:absolute; right:12px; font-size:36px; opacity:0.2;
+}
+.xp-level {
+  width: 42px; height: 42px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 50%;
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Fredoka One',cursive; font-size:18px;
+  flex-shrink:0;
+}
+.xp-info { flex:1; }
+.xp-name { font-family:'Fredoka One',cursive; font-size:14px; }
+.xp-bar-bg { background:rgba(255,255,255,0.25); border-radius:20px; height:6px; margin-top:5px; }
+.xp-bar-fill { background:white; border-radius:20px; height:6px; width:62%; }
+.xp-pts { font-size:10px; opacity:0.8; margin-top:3px; font-weight:700; }
+
+/* ── STREAK ROW ── */
+.stat-row {
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px;
+  flex-shrink: 0;
+}
+.stat-pill {
+  flex:1;
+  background: white;
+  border-radius: 14px;
+  padding: 10px 8px;
+  text-align: center;
+  box-shadow: 0 2px 10px var(--shadow);
+}
+.stat-pill.hot { background: linear-gradient(135deg, #FFF0E0, #FCDDB0); }
+.stat-val { font-family:'Fredoka One',cursive; font-size:18px; color:var(--brown); }
+.stat-lbl { font-size:9px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-top:1px; }
+
+/* ── BOTTOM NAV ── */
+.bottom-nav {
+  padding: 10px 12px 16px;
+  background: white;
+  border-top: 1.5px solid var(--warm);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  flex-shrink: 0;
+}
+.nav-tab {
+  display:flex; flex-direction:column; align-items:center; gap:3px;
+  cursor:pointer; flex:1; padding:4px 0;
+}
+.nav-tab-icon { font-size:20px; }
+.nav-tab-lbl { font-size:9px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; }
+.nav-tab.active .nav-tab-lbl { color:var(--terracotta); }
+.nav-add-btn {
+  width:52px; height:52px;
+  background: var(--terracotta);
+  border-radius:18px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:28px; color:white;
+  box-shadow: 0 6px 20px rgba(180,80,40,0.45);
+  cursor:pointer;
+  margin-top:-14px;
+  flex-shrink:0;
+  transition: transform 0.15s;
+}
+.nav-add-btn:hover { transform: scale(1.05); }
+
+/* ══════════════════════════════════
+   FRIDGE SCREEN
+══════════════════════════════════ */
+.fridge-screen-bg {
+  background: linear-gradient(180deg, #D0E0D4 0%, #E8F2EA 60px, var(--cream) 100%);
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+
+/* filter chips */
+.chip-row {
+  display:flex; gap:7px;
+  padding: 4px 16px 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex-shrink: 0;
+}
+.chip-row::-webkit-scrollbar { display:none; }
+.chip {
+  background: white;
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--muted);
+  white-space: nowrap;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  transition: all 0.15s;
+  box-shadow: 0 2px 8px var(--shadow);
+}
+.chip.on {
+  background: var(--terracotta);
+  color: white;
+  border-color: var(--terracotta);
+}
+.chip:hover:not(.on) { border-color: var(--terracotta); color: var(--terracotta); }
+
+/* ── FRIDGE INTERIOR ── */
+.fridge-interior {
+  flex:1; overflow-y:auto; overflow-x:hidden; scrollbar-width:none;
+  padding: 0 14px 16px;
+}
+.fridge-interior::-webkit-scrollbar { display:none; }
+
+/* Shelf */
+.shelf {
+  margin-bottom: 6px;
+}
+.shelf-surface {
+  height: 10px;
+  background: linear-gradient(180deg, #B8D4BC, #A0C0A8);
+  border-radius: 6px;
+  border-top: 2px solid rgba(255,255,255,0.6);
+  box-shadow: 0 4px 8px rgba(60,90,60,0.2);
+  margin-bottom: 14px;
+}
+.shelf-label {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-bottom: 8px;
+  padding-left: 4px;
+}
+
+/* items on shelf */
+.shelf-items {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  min-height: 90px;
+  flex-wrap: wrap;
+}
+
+/* ── FOOD ITEM CARD ── */
+.food-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.15s ease;
+  padding: 6px 4px 4px;
+}
+.food-item:hover { transform: translateY(-4px) scale(1.05); }
+.food-item:active { transform: scale(0.95); }
+
+.food-icon-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.food-emoji { font-size: 42px; display: block; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.15)); line-height: 1; }
+.food-badge {
+  position: absolute;
+  top: -4px; right: -6px;
+  min-width: 22px; height: 22px;
+  border-radius: 11px;
+  padding: 0 5px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 900; color: white;
+  border: 2px solid var(--cream);
+}
+.badge-g { background: var(--sage); }
+.badge-o { background: #D4783A; }
+.badge-r { background: #C84040; }
+
+.food-name {
+  font-family: 'Fredoka One', cursive;
+  font-size: 11px;
+  color: var(--brown);
+  margin-top: 5px;
+  text-align: center;
+  max-width: 60px;
+  line-height: 1.2;
+}
+.food-qty {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-top: 1px;
+}
+.food-item.expiring .food-emoji {
+  filter: drop-shadow(0 3px 6px rgba(200,80,40,0.3));
+}
+.food-item.expiring::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 12px;
+  background: rgba(255,160,80,0.12);
+  border: 1.5px dashed rgba(200,120,40,0.4);
+}
+
+/* add item slot */
+.food-add-slot {
+  width: 66px;
+  min-height: 72px;
+  border: 2px dashed var(--tan);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  gap: 4px;
+}
+.food-add-slot:hover { border-color: var(--terracotta); background: rgba(200,112,74,0.05); }
+.food-add-slot span { font-size: 22px; color: var(--tan); }
+.food-add-slot small { font-size: 9px; font-weight: 800; color: var(--tan); text-transform:uppercase; letter-spacing:1px; }
+.food-add-slot:hover span, .food-add-slot:hover small { color: var(--terracotta); }
+
+/* use-it-up banner */
+.use-it-up {
+  margin: 0 0 16px;
+  background: linear-gradient(135deg, #FFF0E4, #FCDFC8);
+  border-radius: 16px;
+  padding: 14px 16px;
+  border: 1.5px solid #ECC0A0;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+.use-it-up:hover { transform: scale(1.01); }
+.uiu-tag { font-size:10px; font-weight:800; color:var(--terracotta); text-transform:uppercase; letter-spacing:1px; }
+.uiu-title { font-family:'Fredoka One',cursive; font-size:16px; color:var(--brown); margin:3px 0; }
+.uiu-sub { font-size:11px; color:var(--muted); font-weight:600; }
+.uiu-btns { display:flex; gap:8px; margin-top:10px; }
+.uiu-btn {
+  background:var(--terracotta); color:white;
+  border-radius:10px; padding:6px 14px;
+  font-size:11px; font-weight:800; cursor:pointer; border:none;
+  transition:transform 0.1s;
+}
+.uiu-btn:hover { transform:scale(1.03); }
+.uiu-btn.ghost { background:var(--warm); color:var(--brown); }
+
+/* ══════════════════════════════════
+   MODAL – EDIT FOOD ITEM
+══════════════════════════════════ */
+.modal-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(40,20,10,0.5);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+  animation: fadeBg 0.2s ease;
+}
+@keyframes fadeBg { from{opacity:0} to{opacity:1} }
+.modal-overlay.open { display: flex; }
+
+.modal-sheet {
+  background: var(--cream);
+  border-radius: 28px 28px 0 0;
+  padding: 24px 24px 32px;
+  width: 100%;
+  animation: slideUp 0.28s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes slideUp {
+  from { transform: translateY(100%); opacity:0; }
+  to { transform: translateY(0); opacity:1; }
+}
+
+.modal-drag {
+  width: 40px; height: 4px;
+  background: var(--tan);
+  border-radius: 2px;
+  margin: -8px auto 20px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.modal-emoji { font-size: 52px; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.12)); }
+.modal-item-name {
+  font-family: 'Fredoka One', cursive;
+  font-size: 24px;
+  color: var(--brown);
+}
+.modal-item-sub { font-size: 13px; color: var(--muted); font-weight: 600; }
+
+.modal-section { margin-bottom: 18px; }
+.modal-label { font-size: 11px; font-weight: 800; color: var(--muted); text-transform:uppercase; letter-spacing:1.5px; margin-bottom: 8px; }
+
+.qty-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: var(--warm);
+  border-radius: 14px;
+  padding: 4px;
+  width: fit-content;
+}
+.qty-btn {
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  border: none;
+  background: white;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--brown);
+  cursor: pointer;
+  box-shadow: 0 2px 8px var(--shadow);
+  transition: transform 0.1s;
+  display:flex; align-items:center; justify-content:center;
+}
+.qty-btn:hover { transform:scale(1.05); }
+.qty-val {
+  font-family: 'Fredoka One', cursive;
+  font-size: 22px;
+  color: var(--brown);
+  width: 60px;
+  text-align: center;
+}
+
+.expiry-display {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--warm);
+  border-radius: 14px;
+  padding: 12px 16px;
+}
+.expiry-icon { font-size: 22px; }
+.expiry-date { font-family:'Fredoka One',cursive; font-size:18px; color:var(--brown); }
+.expiry-days { font-size:12px; font-weight:700; }
+.days-ok { color:var(--sage-light); }
+.days-warn { color:#D4783A; }
+.days-bad { color:#C84040; }
+
+.condition-row {
+  display: flex;
+  gap: 8px;
+}
+.cond-pill {
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 12px; font-weight: 800;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.15s;
+  background: white;
+  color: var(--muted);
+  box-shadow: 0 2px 8px var(--shadow);
+}
+.cond-pill.sel.fresh { background:#E8F2E8; color:var(--sage); border-color:var(--sage); }
+.cond-pill.sel.ok { background:#FFF4E0; color:var(--mustard); border-color:var(--mustard); }
+.cond-pill.sel.bad { background:#FDEAE8; color:#C84040; border-color:#C84040; }
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+.modal-btn {
+  flex:1; padding:14px;
+  border-radius:16px; border:none;
+  font-family:'Fredoka One',cursive; font-size:16px;
+  cursor:pointer; transition:transform 0.1s;
+}
+.modal-btn:hover { transform:scale(1.02); }
+.modal-btn.save { background:var(--terracotta); color:white; box-shadow:0 6px 20px rgba(180,80,40,0.35); }
+.modal-btn.del { background:var(--warm); color:var(--muted); }
+
+/* ── ANIMATIONS ── */
+@keyframes fadeInUp {
+  from { opacity:0; transform:translateY(20px); }
+  to { opacity:1; transform:translateY(0); }
+}
+.food-item { animation: fadeInUp 0.35s ease both; }
+.food-item:nth-child(1){animation-delay:0.04s}
+.food-item:nth-child(2){animation-delay:0.09s}
+.food-item:nth-child(3){animation-delay:0.14s}
+.food-item:nth-child(4){animation-delay:0.19s}
+
+@keyframes bounce-in {
+  0%  { transform:scale(0.3); opacity:0; }
+  60% { transform:scale(1.08); }
+  100%{ transform:scale(1); opacity:1; }
+}
+.kitchen-bg { animation: fadeInUp 0.4s ease; }
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="status"><span>9:41</span><span>🔋 ▊▊▊</span></div>
+
+  <!-- ══════ HOME SCREEN ══════ -->
+  <div class="screen active" id="screen-home">
+    <div class="topnav">
+      <span style="width:38px"></span>
+      <span class="topnav-title">🏡 My Home</span>
+      <button class="icon-btn">☰</button>
+    </div>
+
+    <!-- XP + stats -->
+    <div class="xp-strip">
+      <div class="xp-level">7</div>
+      <div class="xp-info">
+        <div class="xp-name">Zero-Waste Apprentice 🌱</div>
+        <div class="xp-bar-bg"><div class="xp-bar-fill"></div></div>
+        <div class="xp-pts">620 / 1000 XP · Next: Waste Warrior</div>
+      </div>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-pill hot">
+        <div class="stat-val">🔥 12</div>
+        <div class="stat-lbl">Day Streak</div>
+      </div>
+      <div class="stat-pill">
+        <div class="stat-val">💰 $38</div>
+        <div class="stat-lbl">Saved</div>
+      </div>
+      <div class="stat-pill">
+        <div class="stat-val">♻️ 4lb</div>
+        <div class="stat-lbl">Saved</div>
+      </div>
+    </div>
+
+    <!-- Kitchen scene -->
+    <div class="scroll">
+    <div class="kitchen-bg" style="flex:1; min-height:340px;">
+      <div class="kitchen-label">Tap to explore your kitchen</div>
+
+      <div class="appliances-row">
+
+        <!-- FRIDGE -->
+        <div class="fridge-wrap" onclick="goFridge()">
+          <div class="fridge-body">
+            <div class="fridge-handle-top"></div>
+            <div class="fridge-handle-bottom"></div>
+            <div class="fridge-alert">2</div>
+            <!-- inner light effect -->
+            <div style="position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(120deg,rgba(255,255,255,0.4) 0%,transparent 60%);pointer-events:none;border-radius:13px;"></div>
+            <div class="fridge-peek">🥛🥚🥒</div>
+          </div>
+          <div class="appliance-name">Fridge</div>
+          <div class="appliance-count">6 items</div>
+        </div>
+
+        <!-- PANTRY -->
+        <div class="pantry-wrap" onclick="goPantry()">
+          <div style="position:relative;">
+            <div class="pantry-roof"></div>
+            <div class="pantry-body">
+              <!-- door split -->
+              <div class="pantry-door"></div>
+              <!-- shelves -->
+              <div class="pantry-shelf" style="top:38px"></div>
+              <div class="pantry-shelf" style="top:80px"></div>
+              <div class="pantry-shelf" style="top:122px"></div>
+              <!-- knobs -->
+              <div class="pantry-knob" style="top:56px;left:35px"></div>
+              <div class="pantry-knob" style="top:56px;right:35px"></div>
+              <div class="pantry-knob" style="top:97px;left:35px"></div>
+              <div class="pantry-knob" style="top:97px;right:35px"></div>
+              <!-- items peeking -->
+              <div style="position:absolute;bottom:10px;left:0;right:0;display:flex;justify-content:center;gap:2px;font-size:14px;opacity:0.65;">🥫🫙🍝</div>
+              <!-- inner gradient -->
+              <div style="position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(120deg,rgba(255,255,255,0.3) 0%,transparent 60%);pointer-events:none;border-radius:5px;"></div>
+            </div>
+          </div>
+          <div class="appliance-name" style="margin-top:20px">Pantry</div>
+          <div class="appliance-count">14 items</div>
+        </div>
+
+      </div>
+
+      <!-- FRUIT BOWL -->
+      <div class="bowl-wrap" onclick="goBowl()">
+        <div class="bowl-body">
+          <div class="bowl-fruits">🍌🍎🍊</div>
+          <div class="bowl-rim"></div>
+          <div class="bowl-dish"></div>
+        </div>
+        <div class="appliance-name">Counter Bowl</div>
+        <div class="appliance-count" style="color:#D4783A">⚠️ 1 ripening</div>
+      </div>
+
+      <!-- TRASH CAN -->
+      <div class="trash-wrap">
+        <div class="trash-handle"></div>
+        <div class="trash-lid"></div>
+        <div class="trash-can">
+          <div class="trash-lines">
+            <div class="trash-line"></div>
+            <div class="trash-line"></div>
+            <div class="trash-line"></div>
+          </div>
+        </div>
+        <div class="appliance-name" style="font-size:10px">Toss It</div>
+      </div>
+
+    </div>
+    </div>
+
+    <div class="bottom-nav">
+      <div class="nav-tab active">
+        <div class="nav-tab-icon">🏠</div>
+        <div class="nav-tab-lbl" style="color:var(--terracotta)">Home</div>
+      </div>
+      <div class="nav-tab">
+        <div class="nav-tab-icon">📋</div>
+        <div class="nav-tab-lbl">List</div>
+      </div>
+      <div class="nav-add-btn">+</div>
+      <div class="nav-tab">
+        <div class="nav-tab-icon">📖</div>
+        <div class="nav-tab-lbl">Recipes</div>
+      </div>
+      <div class="nav-tab">
+        <div class="nav-tab-icon">⚙️</div>
+        <div class="nav-tab-lbl">Settings</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ FRIDGE SCREEN ══════ -->
+  <div class="screen" id="screen-fridge">
+    <div class="fridge-screen-bg">
+      <div class="topnav" style="padding-top:4px">
+        <button class="icon-btn" onclick="goHome()">←</button>
+        <span class="topnav-title">🧊 Fridge</span>
+        <button class="icon-btn">☰</button>
+      </div>
+
+      <div class="chip-row">
+        <div class="chip on">All Items</div>
+        <div class="chip">🔥 Expiring</div>
+        <div class="chip">✨ New</div>
+        <div class="chip">Use-It-Up</div>
+      </div>
+
+      <div class="fridge-interior">
+        <!-- Use-it-up banner -->
+        <div class="use-it-up">
+          <div class="uiu-tag">🔥 Use It Up Suggestion</div>
+          <div class="uiu-title">Cucumber Egg Scramble</div>
+          <div class="uiu-sub">Uses mayo + cucumbers before they expire today</div>
+          <div class="uiu-btns">
+            <button class="uiu-btn">Cook This 👨‍🍳</button>
+            <button class="uiu-btn ghost">Skip</button>
+          </div>
+        </div>
+
+        <!-- SHELF 1 -->
+        <div class="shelf">
+          <div class="shelf-label">Top Shelf</div>
+          <div class="shelf-items">
+            <div class="food-item" onclick="openItem('eggs')">
+              <div class="food-icon-wrap">
+                <span class="food-emoji">🥚</span>
+                <div class="food-badge badge-g">12</div>
+              </div>
+              <div class="food-name">Eggs</div>
+              <div class="food-qty">Oct 30</div>
+            </div>
+            <div class="food-item expiring" onclick="openItem('mayo')">
+              <div class="food-icon-wrap">
+                <span class="food-emoji">🫙</span>
+                <div class="food-badge badge-r">20%</div>
+              </div>
+              <div class="food-name">Mayo</div>
+              <div class="food-qty" style="color:#C84040">TODAY</div>
+            </div>
+            <div class="food-item" onclick="openItem('cheese')">
+              <div class="food-icon-wrap">
+                <span class="food-emoji">🧀</span>
+                <div class="food-badge badge-g">1</div>
+              </div>
+              <div class="food-name">Cheddar</div>
+              <div class="food-qty">Nov 12</div>
+            </div>
+            <div class="food-add-slot" onclick="openAddItem()">
+              <span>＋</span>
+              <small>Add</small>
+            </div>
+          </div>
+          <div class="shelf-surface"></div>
+        </div>
+
+        <!-- SHELF 2 -->
+        <div class="shelf" style="margin-top:6px">
+          <div class="shelf-label">Middle Shelf</div>
+          <div class="shelf-items">
+            <div class="food-item expiring" onclick="openItem('cucumber')">
+              <div class="food-icon-wrap">
+                <span class="food-emoji">🥒</span>
+                <div class="food-badge badge-o">3</div>
+              </div>
+              <div class="food-name">Cucumber</div>
+              <div class="food-qty" style="color:#D4783A">Oct 28</div>
+            </div>
+            <div class="food-item expiring" onclick="openItem('milk')">
+              <div class="food-icon-wrap">
+                <span class="food-emoji">🥛</span>
+                <div class="food-badge badge-o">½</div>
+              </div>
+              <div class="food-name">Milk</div>
+              <div class="food-qty" style="color:#D4783A">Oct 28</div>
+            </div>
+            <div class="food-item" onclick="openItem('butter')">
+              <div class="food-icon-wrap">
+                <span class="food-emoji">🧈</span>
+                <div class="food-badge badge-g">2</div>
+              </div>
+              <div class="food-name">Butter</div>
+              <div class="food-qty">Nov 5</div>
+            </div>
+            <div class="food-add-slot" onclick="openAddItem()">
+              <span>＋</span>
+              <small>Add</small>
+            </div>
+          </div>
+          <div class="shelf-surface"></div>
+        </div>
+
+        <div style="height:12px"></div>
+      </div>
+    </div>
+
+    <div class="bottom-nav">
+      <div class="nav-tab">
+        <div class="nav-tab-icon">🏠</div>
+        <div class="nav-tab-lbl">Home</div>
+      </div>
+      <div class="nav-tab active">
+        <div class="nav-tab-icon">📋</div>
+        <div class="nav-tab-lbl" style="color:var(--terracotta)">Fridge</div>
+      </div>
+      <div class="nav-add-btn" onclick="openAddItem()">+</div>
+      <div class="nav-tab">
+        <div class="nav-tab-icon">📖</div>
+        <div class="nav-tab-lbl">Recipes</div>
+      </div>
+      <div class="nav-tab">
+        <div class="nav-tab-icon">⚙️</div>
+        <div class="nav-tab-lbl">Settings</div>
+      </div>
+    </div>
+
+    <!-- ITEM EDIT MODAL -->
+    <div class="modal-overlay" id="item-modal" onclick="closeModal(event)">
+      <div class="modal-sheet" id="modal-sheet">
+        <div class="modal-drag"></div>
+        <div class="modal-header">
+          <div class="modal-emoji" id="modal-emoji">🥚</div>
+          <div>
+            <div class="modal-item-name" id="modal-name">Eggs</div>
+            <div class="modal-item-sub" id="modal-sub">Top Shelf · Added Oct 18</div>
+          </div>
+        </div>
+
+        <div class="modal-section">
+          <div class="modal-label">Quantity</div>
+          <div class="qty-row">
+            <button class="qty-btn" onclick="changeQty(-1)">−</button>
+            <div class="qty-val" id="qty-display">12</div>
+            <button class="qty-btn" onclick="changeQty(1)">+</button>
+          </div>
+        </div>
+
+        <div class="modal-section">
+          <div class="modal-label">Expiry Date</div>
+          <div class="expiry-display">
+            <div class="expiry-icon">📅</div>
+            <div>
+              <div class="expiry-date" id="modal-exp-date">Oct 30, 2025</div>
+              <div class="expiry-days days-ok" id="modal-exp-days">8 days left — good!</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-section">
+          <div class="modal-label">Condition</div>
+          <div class="condition-row">
+            <div class="cond-pill sel fresh" onclick="setCond(this,'fresh')">✅ Fresh</div>
+            <div class="cond-pill" onclick="setCond(this,'ok')">🟡 Getting old</div>
+            <div class="cond-pill" onclick="setCond(this,'bad')">🔴 About to go</div>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button class="modal-btn del" onclick="closeModalDirect()">🗑 Remove</button>
+          <button class="modal-btn save" onclick="closeModalDirect()">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /phone -->
+
+<script>
+const items = {
+  eggs:     { emoji:'🥚', name:'Eggs',      qty:12, exp:'Oct 30, 2025', daysLeft:8,  cond:'fresh', shelf:'Top Shelf · Added Oct 18' },
+  mayo:     { emoji:'🫙', name:'Mayo',       qty:1,  exp:'Oct 22, 2025', daysLeft:0,  cond:'bad',   shelf:'Top Shelf · Added Sep 2' },
+  cheese:   { emoji:'🧀', name:'Cheddar',    qty:1,  exp:'Nov 12, 2025', daysLeft:21, cond:'fresh', shelf:'Top Shelf · Added Oct 15' },
+  cucumber: { emoji:'🥒', name:'Cucumber',   qty:3,  exp:'Oct 28, 2025', daysLeft:6,  cond:'ok',    shelf:'Middle Shelf · Added Oct 20' },
+  milk:     { emoji:'🥛', name:'Milk',       qty:1,  exp:'Oct 28, 2025', daysLeft:6,  cond:'ok',    shelf:'Middle Shelf · Added Oct 19' },
+  butter:   { emoji:'🧈', name:'Butter',     qty:2,  exp:'Nov 5, 2025',  daysLeft:14, cond:'fresh', shelf:'Middle Shelf · Added Oct 10' },
+};
+let activeQty = 0;
+
+function goHome() { show('home'); }
+function goFridge() { show('fridge'); }
+function goPantry() { show('fridge'); } // demo routes to fridge
+function goBowl() { show('fridge'); }
+
+function show(s) {
+  document.querySelectorAll('.screen').forEach(el=>el.classList.remove('active'));
+  document.getElementById('screen-'+s).classList.add('active');
+}
+
+function openItem(key) {
+  const it = items[key];
+  if(!it) return;
+  activeQty = it.qty;
+  document.getElementById('modal-emoji').textContent = it.emoji;
+  document.getElementById('modal-name').textContent = it.name;
+  document.getElementById('modal-sub').textContent = it.shelf;
+  document.getElementById('qty-display').textContent = it.qty;
+  document.getElementById('modal-exp-date').textContent = it.exp;
+  const d = document.getElementById('modal-exp-days');
+  if(it.daysLeft <= 0) {
+    d.textContent = 'Expired!';
+    d.className = 'expiry-days days-bad';
+  } else if(it.daysLeft <= 3) {
+    d.textContent = it.daysLeft + ' day(s) left — use soon!';
+    d.className = 'expiry-days days-warn';
+  } else {
+    d.textContent = it.daysLeft + ' days left — good!';
+    d.className = 'expiry-days days-ok';
+  }
+  // set condition
+  document.querySelectorAll('.cond-pill').forEach(p=>{
+    p.classList.remove('sel','fresh','ok','bad');
+  });
+  const condMap = {fresh:0, ok:1, bad:2};
+  const pills = document.querySelectorAll('.cond-pill');
+  const idx = condMap[it.cond] ?? 0;
+  pills[idx].classList.add('sel', it.cond);
+
+  document.getElementById('item-modal').classList.add('open');
+}
+
+function openAddItem() {
+  openItem('eggs'); // demo: open eggs as placeholder
+}
+
+function changeQty(d) {
+  activeQty = Math.max(0, activeQty + d);
+  document.getElementById('qty-display').textContent = activeQty;
+}
+
+function setCond(el, type) {
+  document.querySelectorAll('.cond-pill').forEach(p=>p.classList.remove('sel','fresh','ok','bad'));
+  el.classList.add('sel', type);
+}
+
+function closeModal(e) {
+  if(e.target === document.getElementById('item-modal')) closeModalDirect();
+}
+function closeModalDirect() {
+  document.getElementById('item-modal').classList.remove('open');
+}
+</script>
+</body>
+</html>

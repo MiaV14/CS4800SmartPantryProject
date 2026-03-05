@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartPantry — Interactive Storyboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Lato', sans-serif;
+  background: #1c1a14;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 10px 40px;
+  background-image: radial-gradient(ellipse at 20% 50%, #2a2518 0%, #1c1a14 60%);
+}
+
+h1.title {
+  font-family: 'Playfair Display', serif;
+  color: #e8dfc8;
+  font-size: 1.6rem;
+  text-align: center;
+  margin-bottom: 4px;
+  letter-spacing: 1px;
+}
+.subtitle {
+  color: #7a7060;
+  font-size: 0.75rem;
+  text-align: center;
+  margin-bottom: 20px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+/* ── CHAPTER TABS ── */
+.chapters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 24px;
+  max-width: 860px;
+}
+.ch-btn {
+  background: #2a2518;
+  border: 1px solid #3a3528;
+  color: #8a8070;
+  padding: 7px 16px;
+  border-radius: 4px;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all .2s;
+}
+.ch-btn:hover { border-color: #8a7a50; color: #c8b880; }
+.ch-btn.active { background: #4a3e1a; border-color: #c8a830; color: #f0d060; }
+
+/* ── BOOK WRAPPER ── */
+.book-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.nav-arrow {
+  width: 44px; height: 44px;
+  background: #2a2518;
+  border: 1px solid #3a3528;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; color: #8a7a50;
+  cursor: pointer;
+  transition: all .2s;
+  flex-shrink: 0;
+  user-select: none;
+}
+.nav-arrow:hover { background: #3a3020; color: #f0d060; border-color: #8a7a50; }
+.nav-arrow.disabled { opacity: 0.2; pointer-events: none; }
+
+/* ── BOOK ── */
+.book {
+  width: 780px;
+  max-width: calc(100vw - 120px);
+  height: 540px;
+  position: relative;
+  perspective: 2000px;
+}
+
+/* spread = two pages side by side */
+.spread {
+  width: 100%; height: 100%;
+  display: none;
+  grid-template-columns: 1fr 1fr;
+  box-shadow: 0 30px 80px rgba(0,0,0,.7), 0 0 0 1px #3a3020;
+  border-radius: 3px 8px 8px 3px;
+}
+.spread.active { display: grid; }
+
+/* page */
+.page {
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+.page.left {
+  border-right: 2px solid #c8b060;
+  border-radius: 3px 0 0 3px;
+}
+.page.right {
+  border-radius: 0 8px 8px 0;
+}
+
+/* page inner — all content goes here */
+.page-inner {
+  width: 100%; height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #3a3020 #2a2518;
+  padding: 28px 26px 20px;
+  display: flex;
+  flex-direction: column;
+}
+.page-inner::-webkit-scrollbar { width: 4px; }
+.page-inner::-webkit-scrollbar-track { background: transparent; }
+.page-inner::-webkit-scrollbar-thumb { background: #3a3020; }
+
+/* page number */
+.page-num {
+  position: absolute;
+  bottom: 10px;
+  font-size: 0.65rem;
+  color: #5a5040;
+  font-style: italic;
+  letter-spacing: 1px;
+}
+.page.left .page-num { left: 20px; }
+.page.right .page-num { right: 20px; }
+
+/* spine shadow */
+.page.left::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0;
+  width: 20px; height: 100%;
+  background: linear-gradient(to left, rgba(0,0,0,.15), transparent);
+  pointer-events: none;
+}
+.page.right::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 20px; height: 100%;
+  background: linear-gradient(to right, rgba(0,0,0,.15), transparent);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── PAGE THEMES ── */
+.theme-cover   { background: #2a2010; }
+.theme-cream   { background: #faf6ee; }
+.theme-sage    { background: #e8f0e4; }
+.theme-white   { background: #ffffff; }
+.theme-warm    { background: #fdf8f0; }
+.theme-dark    { background: #1e2820; }
+.theme-amber   { background: #fdf4e0; }
+
+/* ── TYPOGRAPHY ── */
+.page-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.5rem;
+  color: #1a1a14;
+  margin-bottom: 6px;
+  line-height: 1.2;
+}
+.page-title.light { color: #e8dfc8; }
+.page-subtitle {
+  font-size: 0.68rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #8a7a50;
+  margin-bottom: 14px;
+  font-weight: 700;
+}
+.page-subtitle.light { color: #a09070; }
+.rule { height: 1px; background: #d0c8a0; margin: 10px 0 14px; opacity: .5; }
+.rule.dark { background: #4a5040; opacity: .7; }
+
+p.body-text {
+  font-size: 0.8rem;
+  line-height: 1.65;
+  color: #3a3020;
+  margin-bottom: 10px;
+}
+p.body-text.light { color: #a8b8a0; }
+
+/* ── COVER PAGE ── */
+.cover-leaf {
+  font-size: 5rem;
+  text-align: center;
+  margin: 10px 0 6px;
+}
+.cover-tagline {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 1rem;
+  color: #a09060;
+  text-align: center;
+  margin-bottom: 16px;
+}
+.cover-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+.cover-stat {
+  background: rgba(200,168,48,.08);
+  border: 1px solid rgba(200,168,48,.2);
+  border-radius: 6px;
+  padding: 10px 12px;
+  text-align: center;
+}
+.cover-stat .num { font-family: 'Playfair Display', serif; font-size: 1.4rem; color: #c8a830; }
+.cover-stat .lbl { font-size: 0.62rem; color: #7a6840; text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+
+/* ── SCREEN MOCKUP (phone inside page) ── */
+.phone-mock {
+  width: 140px;
+  border-radius: 20px;
+  border: 2.5px solid #2a2010;
+  background: #fff;
+  overflow: hidden;
+  box-shadow: 4px 8px 24px rgba(0,0,0,.25);
+  flex-shrink: 0;
+  font-size: 0.6rem;
+}
+.phone-mock .pm-notch {
+  height: 12px; background: #1a1a14; display: flex; align-items: center; justify-content: center;
+}
+.phone-mock .pm-notch::after { content: ''; width: 32px; height: 5px; background: #0a0a0a; border-radius: 3px; }
+.pm-status { display: flex; justify-content: space-between; padding: 4px 8px 2px; font-size: 0.55rem; color: #666; background: #fff; font-weight: 700; }
+.pm-content { padding: 0; }
+
+/* hero bar */
+.pm-hero { padding: 10px 10px 12px; }
+.pm-hero.green { background: linear-gradient(135deg, #3a6b48, #254d30); color: #fff; }
+.pm-hero.sage  { background: #e8f0e4; }
+.pm-hero.dark  { background: #1e2820; color: #a8c8a0; }
+.pm-hero h3 { font-family: 'Playfair Display', serif; font-size: 0.9rem; margin-bottom: 2px; }
+.pm-hero p  { font-size: 0.55rem; opacity: .75; }
+
+.pm-stat-row { display: flex; gap: 4px; margin-top: 8px; }
+.pm-stat { flex:1; background: rgba(255,255,255,.15); border-radius: 5px; padding: 5px 4px; text-align:center; }
+.pm-stat .n { font-size: 0.85rem; font-weight: 700; }
+.pm-stat .l { font-size: 0.45rem; opacity: .7; margin-top: 1px; }
+
+/* alert row */
+.pm-alert { display: flex; align-items: center; gap: 6px; padding: 6px 10px; background: #fff8ee; border-bottom: 1px solid #f5e4c0; font-size: 0.6rem; color: #8a5a00; cursor: pointer; }
+.pm-alert .badge { background: #e05252; color: #fff; border-radius: 50%; width: 14px; height: 14px; font-size: 0.5rem; display:flex; align-items:center; justify-content:center; font-weight:700; flex-shrink:0; }
+
+/* list row */
+.pm-row { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-bottom: 1px solid #f0ebe4; font-size: 0.6rem; color: #2a2010; }
+.pm-row .dot-ok  { width: 6px; height: 6px; border-radius: 50%; background: #4a9a5a; flex-shrink:0; }
+.pm-row .dot-warn{ width: 6px; height: 6px; border-radius: 50%; background: #e09030; flex-shrink:0; }
+.pm-row .dot-bad { width: 6px; height: 6px; border-radius: 50%; background: #e05252; flex-shrink:0; }
+.pm-row .ml-auto { margin-left: auto; color: #9a8a70; font-size: 0.5rem; }
+.pm-row .tag-green { background: #e0f0e4; color: #2a7a3a; padding: 1px 5px; border-radius: 3px; font-size: 0.5rem; font-weight:700; }
+.pm-row .tag-red   { background: #ffeaea; color: #c03030; padding: 1px 5px; border-radius: 3px; font-size: 0.5rem; font-weight:700; }
+.pm-row .tag-warn  { background: #fff3e0; color: #c06000; padding: 1px 5px; border-radius: 3px; font-size: 0.5rem; font-weight:700; }
+
+.pm-section { padding: 5px 10px 2px; font-size: 0.5rem; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: #9a8a70; background: #f8f4ee; }
+.pm-btn { margin: 8px 10px; background: #3a6b48; color: #fff; border-radius: 20px; padding: 6px 0; text-align:center; font-size: 0.6rem; font-weight: 700; cursor: pointer; }
+.pm-btn.outline { background: transparent; border: 1px solid #3a6b48; color: #3a6b48; }
+.pm-input { margin: 6px 10px; background: #f0ebe4; border-radius: 6px; padding: 6px 8px; font-size: 0.6rem; color: #888; }
+.pm-tab-bar { display:flex; background:#fff; border-top: 1px solid #eee; padding: 5px 0 6px; margin-top: auto; }
+.pm-tab { flex:1; text-align:center; font-size: 0.55rem; color: #aaa; }
+.pm-tab.active { color: #3a6b48; font-weight: 700; }
+.pm-recipe-scroll { display:flex; gap:6px; padding: 6px 10px; overflow:hidden; }
+.pm-recipe-card { width: 60px; background: #fff; border-radius: 7px; overflow:hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); flex-shrink:0; }
+.pm-recipe-card .rimg { height: 36px; display:flex; align-items:center; justify-content:center; font-size:1.2rem; background: linear-gradient(135deg,#d8eed0,#b8e0c8); }
+.pm-recipe-card .rname { padding: 3px 4px 4px; font-size: 0.45rem; font-weight: 700; color: #2a2010; }
+
+/* scan screen */
+.pm-scan-bg { background: #0a0a0a; display:flex; flex-direction:column; align-items:center; justify-content:center; padding: 16px 10px; gap: 8px; }
+.pm-scan-frame { width: 80px; height: 80px; border: 2px solid #4a9a5a; border-radius: 8px; display:flex; align-items:center; justify-content:center; font-size: 1.6rem; position:relative; overflow:hidden; }
+.pm-scan-line { position:absolute; left:0; right:0; height: 1px; background: linear-gradient(90deg, transparent, #4a9a5a, transparent); animation: scanLine 2s ease-in-out infinite; top: 40px; }
+@keyframes scanLine { 0%{top:4px} 50%{top:76px} 100%{top:4px} }
+.pm-scan-hint { color: rgba(255,255,255,.4); font-size: 0.5rem; text-align:center; }
+
+/* notif */
+.pm-notif { display:flex; gap:6px; padding: 6px 10px; border-bottom: 1px solid #f0ebe4; }
+.pm-notif-icon { width: 22px; height: 22px; border-radius: 6px; display:flex; align-items:center; justify-content:center; font-size: 0.7rem; flex-shrink:0; }
+.pm-notif-title { font-size: 0.58rem; font-weight: 700; color: #2a2010; }
+.pm-notif-body { font-size: 0.52rem; color: #7a6840; margin-top:1px; line-height: 1.3; }
+
+/* progress bar */
+.pm-progress { padding: 6px 10px; }
+.pm-progress-lbl { display:flex; justify-content:space-between; font-size: 0.52rem; color:#7a6840; margin-bottom:3px; }
+.pm-progress-track { height: 5px; background: #e8e0d0; border-radius: 50px; }
+.pm-progress-fill  { height: 100%; background: #3a6b48; border-radius: 50px; }
+
+/* badge row */
+.pm-badge-row { display:flex; gap:5px; padding: 6px 10px; flex-wrap:wrap; }
+.pm-badge { background: #fff; border-radius: 6px; padding: 5px 6px; text-align:center; font-size: 0.45rem; color: #7a6840; box-shadow: 0 1px 3px rgba(0,0,0,.07); }
+.pm-badge span { display:block; font-size: 0.85rem; }
+
+/* ── LAYOUT HELPERS ── */
+.two-col { display: flex; gap: 16px; align-items: flex-start; }
+.two-col-phone { display: flex; gap: 14px; align-items: flex-start; }
+.text-col { flex: 1; }
+.phone-col { display:flex; flex-direction:column; align-items:center; gap:4px; }
+.phone-caption { font-size: 0.6rem; color: #7a6840; font-style:italic; text-align:center; max-width:140px; }
+
+.flow-step {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+.step-num-circle {
+  width: 22px; height: 22px;
+  background: #3a6b48;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.step-text strong { font-size: 0.75rem; color: #1a1a14; display:block; margin-bottom:2px; }
+.step-text span { font-size: 0.68rem; color: #5a5040; line-height: 1.5; }
+
+.callout {
+  background: #f0ede0;
+  border-left: 3px solid #c8a830;
+  padding: 8px 12px;
+  border-radius: 0 6px 6px 0;
+  margin: 8px 0;
+}
+.callout.green { background: #e8f0e4; border-color: #3a6b48; }
+.callout.red { background: #fdeaea; border-color: #c03030; }
+.callout p { font-size: 0.7rem; color: #3a3020; line-height: 1.5; margin: 0; }
+.callout strong { color: #1a1a14; }
+
+.ux-note {
+  font-size: 0.65rem;
+  color: #7a6840;
+  font-style: italic;
+  margin-top: 6px;
+  line-height: 1.5;
+}
+
+.tag-pill {
+  display: inline-block;
+  background: #e8f0e4;
+  color: #3a6b48;
+  border-radius: 20px;
+  padding: 2px 9px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  margin: 2px 2px;
+}
+.tag-pill.amber { background: #fef0c0; color: #7a5a00; }
+.tag-pill.red { background: #fdeaea; color: #9a2020; }
+
+.screen-title-bar {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #3a6b48;
+  background: #e8f0e4;
+  padding: 4px 10px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+  display: inline-block;
+}
+.screen-title-bar.amber { color: #7a5a00; background: #fef0c0; }
+.screen-title-bar.red { color: #9a2020; background: #fdeaea; }
+
+/* ── BOTTOM ── */
+.page-indicator {
+  text-align: center;
+  margin-top: 14px;
+  font-size: 0.7rem;
+  color: #5a5040;
+  letter-spacing: 1px;
+}
+.page-dots {
+  display: flex; gap: 6px; justify-content:center; margin-top: 10px;
+}
+.pdot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #3a3020;
+  cursor: pointer;
+  transition: all .2s;
+}
+.pdot.active { background: #c8a830; width: 20px; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<h1 class="title">SmartPantry — Interactive Storyboard</h1>
+<p class="subtitle">CS 4800.02 Software Engineering · Proof of Concept Prototype</p>
+
+<div class="chapters" id="chapters"></div>
+
+<div class="book-wrapper">
+  <div class="nav-arrow" id="prevBtn" onclick="prevSpread()">‹</div>
+  <div class="book" id="book"></div>
+  <div class="nav-arrow" id="nextBtn" onclick="nextSpread()">›</div>
+</div>
+
+<div class="page-indicator" id="pageIndicator"></div>
+<div class="page-dots" id="pageDots"></div>
+
+<script>
+// ═══════════════════════════════════════
+// ALL SPREADS (each = left + right page)
+// ═══════════════════════════════════════
+const spreads = [
+
+// ── 0: COVER ──
+{
+  chapter: "Cover",
+  left: {
+    theme: "theme-cover",
+    html: `
+      <div style="text-align:center;flex:1;display:flex;flex-direction:column;justify-content:center">
+        <div style="font-size:3.5rem;margin-bottom:10px">🥬</div>
+        <div style="font-family:'Playfair Display',serif;font-size:2.2rem;color:#e8dfc8;line-height:1.1;margin-bottom:8px">Smart<br><em style="color:#c8a830">Pantry</em></div>
+        <div style="font-size:0.65rem;letter-spacing:3px;text-transform:uppercase;color:#5a5040;margin-bottom:20px">Interactive Storyboard</div>
+        <div style="height:1px;background:linear-gradient(to right,transparent,#c8a830,transparent);margin:0 20px 20px"></div>
+        <p style="font-family:'Playfair Display',serif;font-style:italic;color:#8a7840;font-size:0.85rem;line-height:1.6">"Never waste food again.<br>Save money, time,<br>and the planet."</p>
+      </div>
+      <div style="font-size:0.6rem;color:#3a3020;text-align:center;margin-top:auto;padding-top:16px">
+        CS 4800.02 · Software Engineering<br>
+        <span style="color:#5a5040">Proof of Concept · HTML Prototype</span>
+      </div>
+      <div class="page-num">i</div>
+    `
+  },
+  right: {
+    theme: "theme-warm",
+    html: `
+      <div class="page-subtitle">Table of Contents</div>
+      <div class="page-title" style="font-size:1.2rem">What's Inside</div>
+      <div class="rule"></div>
+      ${[
+        ["1–2","Business Overview & Problem Statement"],
+        ["3–4","User Persona — Meet Alex"],
+        ["5–6","Screen: Onboarding & Sign Up"],
+        ["7–8","Screen: Home Dashboard"],
+        ["9–10","Screen: Pantry Inventory"],
+        ["11–12","Screen: AI Recipe Suggestions"],
+        ["13–14","Screen: Scan & Add Items"],
+        ["15–16","Screen: Shopping List"],
+        ["17–18","Screen: Meal Planner"],
+        ["19–20","Screen: Waste Insights"],
+        ["21–22","User Journey: Morning Routine"],
+        ["23–24","User Journey: Expiry Alert Flow"],
+      ].map(([pg,title]) => `
+        <div style="display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;border-bottom:1px dotted #d8d0b8">
+          <span style="font-size:0.75rem;color:#2a2010">${title}</span>
+          <span style="font-size:0.65rem;color:#9a8a60;font-style:italic;margin-left:8px;flex-shrink:0">${pg}</span>
+        </div>
+      `).join('')}
+      <div class="page-num">ii</div>
+    `
+  }
+},
+
+// ── 1: BUSINESS OVERVIEW ──
+{
+  chapter: "Overview",
+  left: {
+    theme: "theme-dark",
+    html: `
+      <div class="page-subtitle light">Chapter 1</div>
+      <div class="page-title light">The Problem</div>
+      <div class="rule dark"></div>
+      <div style="font-size:3rem;margin:10px 0;text-align:center">🗑️</div>
+      <p class="body-text light">Americans waste <strong style="color:#f0d060">$408 billion</strong> in food every year. The average family of four throws away <strong style="color:#f0d060">$1,500–$2,000</strong> annually on discarded groceries.</p>
+      <p class="body-text light">Food waste accounts for <strong style="color:#f0d060">8–10%</strong> of global greenhouse gas emissions — and most of it happens right in our kitchens.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
+        ${[["40%","of US food goes uneaten"],["73%","of consumers want to reduce waste"],["$408B","lost to food waste yearly"],["50%","USDA's 2030 reduction goal"]].map(([n,l])=>`
+          <div style="background:rgba(200,168,48,.08);border:1px solid rgba(200,168,48,.15);border-radius:6px;padding:10px;text-align:center">
+            <div style="font-family:'Playfair Display',serif;font-size:1.3rem;color:#c8a830">${n}</div>
+            <div style="font-size:0.58rem;color:#6a7a60;margin-top:3px;line-height:1.4">${l}</div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="page-num" style="color:#3a4030">1</div>
+    `
+  },
+  right: {
+    theme: "theme-sage",
+    html: `
+      <div class="page-subtitle">The Solution</div>
+      <div class="page-title">SmartPantry</div>
+      <div class="rule"></div>
+      <p class="body-text">SmartPantry is a mobile app that combines <strong>computer vision, AI recipe recommendations,</strong> and <strong>smart shopping lists</strong> to eliminate household food waste.</p>
+      <div class="callout green"><p><strong>Core Value Prop:</strong> Scan your groceries, get recipes that use what you have (especially expiring items), and auto-generate shopping lists — all in one place.</p></div>
+      <div style="margin-top:10px">
+        ${[
+          ["📷","Scan receipts & produce via camera — auto-populates your pantry"],
+          ["🤖","AI suggests recipes using items expiring soonest"],
+          ["🛒","Smart shopping lists synced to Instacart & Amazon Fresh"],
+          ["📊","Gamified waste-reduction insights & sustainability badges"],
+        ].map(([e,t]) => `
+          <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:9px">
+            <span style="font-size:1.2rem;flex-shrink:0">${e}</span>
+            <span style="font-size:0.72rem;color:#2a3020;line-height:1.5">${t}</span>
+          </div>
+        `).join('')}
+      </div>
+      <div class="callout" style="margin-top:8px"><p><strong>Market:</strong> $8.2B meal-planning app segment (2024), growing to $15.7B by 2029. Target: 45M sustainability-minded households.</p></div>
+      <div class="page-num">2</div>
+    `
+  }
+},
+
+// ── 2: USER PERSONA ──
+{
+  chapter: "Persona",
+  left: {
+    theme: "theme-amber",
+    html: `
+      <div class="page-subtitle">User Research</div>
+      <div class="page-title">Meet Alex</div>
+      <div class="rule"></div>
+      <div style="display:flex;gap:14px;align-items:flex-start">
+        <div style="width:64px;height:64px;background:linear-gradient(135deg,#3a6b48,#254d30);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2rem;flex-shrink:0">👩</div>
+        <div>
+          <div style="font-family:'Playfair Display',serif;font-size:1.1rem;color:#1a1a14">Alex Martinez, 29</div>
+          <div style="font-size:0.65rem;color:#7a6840">UX Designer · San Francisco, CA</div>
+          <div style="font-size:0.65rem;color:#7a6840">Household of 2 · $85K/yr income</div>
+        </div>
+      </div>
+      <div class="rule" style="margin:10px 0 8px"></div>
+      <p class="body-text"><strong>Background:</strong> Alex cares deeply about sustainability but struggles to keep track of what's in the fridge. She meal-plans on Sunday but often forgets what she bought by Thursday.</p>
+      <div style="margin-top:4px">
+        <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#7a6840;margin-bottom:6px">Goals</div>
+        ${["Reduce food waste and save money on groceries","Eat healthier without spending hours planning","Feel good about her environmental impact"].map(g=>`
+          <div style="display:flex;gap:6px;margin-bottom:5px;font-size:0.7rem;color:#2a2010">
+            <span style="color:#3a6b48;flex-shrink:0">✓</span><span>${g}</span>
+          </div>
+        `).join('')}
+      </div>
+      <div class="page-num">3</div>
+    `
+  },
+  right: {
+    theme: "theme-warm",
+    html: `
+      <div class="page-subtitle">User Research</div>
+      <div class="page-title" style="font-size:1.1rem">Pain Points & Needs</div>
+      <div class="rule"></div>
+      <div style="margin-bottom:12px">
+        <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#9a2020;margin-bottom:6px">😤 Frustrations</div>
+        ${[
+          "Opens the fridge at 7pm with no idea what to cook",
+          "Throws away spinach, herbs, and leftovers every week",
+          "Buys ingredients for a recipe, forgets she has half of them",
+          "No single app connects pantry → recipes → shopping",
+        ].map(f=>`
+          <div style="display:flex;gap:6px;margin-bottom:5px;font-size:0.7rem;color:#2a2010;align-items:flex-start">
+            <span style="color:#c03030;flex-shrink:0">✗</span><span>${f}</span>
+          </div>
+        `).join('')}
+      </div>
+      <div class="rule"></div>
+      <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#3a6b48;margin-bottom:6px">💡 What She Needs</div>
+      ${[
+        ["Low-friction input","Scanning, not typing long lists manually"],
+        ["Proactive alerts","Notify her before food expires, not after"],
+        ["Smart recipes","'What can I make right now?' answered instantly"],
+        ["Impact visibility","See how much money and food she's saving"],
+      ].map(([k,v])=>`
+        <div style="margin-bottom:7px">
+          <div style="font-size:0.72rem;font-weight:700;color:#1a1a14">${k}</div>
+          <div style="font-size:0.68rem;color:#5a5040">${v}</div>
+        </div>
+      `).join('')}
+      <div class="callout" style="margin-top:8px"><p><em>"I just want to open the app and know exactly what I can cook tonight without wasting anything."</em></p></div>
+      <div class="page-num">4</div>
+    `
+  }
+},
+
+// ── 3: ONBOARDING ──
+{
+  chapter: "Onboarding",
+  left: {
+    theme: "theme-cream",
+    html: `
+      <div class="screen-title-bar">Screen 1 — Splash & Sign Up</div>
+      <div class="page-title" style="font-size:1.1rem">First Launch</div>
+      <div class="rule"></div>
+      <div class="two-col-phone">
+        <div class="phone-col">
+          <div class="phone-mock" style="width:130px">
+            <div class="pm-notch"></div>
+            <div style="background:linear-gradient(160deg,#2a3a1e,#1a2814);padding:20px 12px 24px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px;min-height:240px;justify-content:center">
+              <div style="font-size:2.5rem">🥦</div>
+              <div style="font-family:'Playfair Display',serif;font-size:1.1rem;color:#c8dfc0">Smart<em style="color:#a8c830">Pantry</em></div>
+              <div style="font-size:0.55rem;color:#5a7050;line-height:1.5;max-width:90px;text-align:center">Never waste food again. Save money &amp; the planet.</div>
+              <div style="background:#3a6b48;color:#fff;border-radius:20px;padding:6px 20px;font-size:0.6rem;font-weight:700;margin-top:8px">Get Started</div>
+              <div style="color:#4a5a40;font-size:0.55rem">Sign In</div>
+            </div>
+          </div>
+          <div class="phone-caption">Splash screen</div>
+        </div>
+        <div class="phone-col">
+          <div class="phone-mock" style="width:130px">
+            <div class="pm-notch"></div>
+            <div class="pm-status"><span>9:41</span><span>100%</span></div>
+            <div style="padding:10px 10px 0">
+              <div style="font-family:'Playfair Display',serif;font-size:0.9rem;color:#1a1a14;margin-bottom:2px">Create Account</div>
+              <div style="font-size:0.52rem;color:#8a7a60;margin-bottom:8px">Join 50,000+ households</div>
+              <div class="pm-input">Your name</div>
+              <div class="pm-input">Email address</div>
+              <div class="pm-input" style="margin-bottom:8px">Password</div>
+              <div style="font-size:0.55rem;font-weight:700;color:#2a2010;margin-bottom:5px">Household size</div>
+              <div style="display:flex;gap:3px;margin-bottom:8px">
+                ${["1","2","3","4+"].map((n,i)=>`<div style="width:22px;height:22px;border-radius:5px;background:${i===1?'#3a6b48':'#f0ebe4'};color:${i===1?'#fff':'#8a7a60'};display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700">${n}</div>`).join('')}
+              </div>
+              <div class="pm-btn">Continue →</div>
+            </div>
+          </div>
+          <div class="phone-caption">Sign up form</div>
+        </div>
+      </div>
+      <div class="page-num">5</div>
+    `
+  },
+  right: {
+    theme: "theme-warm",
+    html: `
+      <div class="screen-title-bar">Screen 2 — Dietary Preferences</div>
+      <div class="page-title" style="font-size:1.1rem">Personalization</div>
+      <div class="rule"></div>
+      <div class="two-col-phone" style="justify-content:center">
+        <div class="phone-col">
+          <div class="phone-mock" style="width:150px">
+            <div class="pm-notch"></div>
+            <div class="pm-status"><span>9:41</span><span>100%</span></div>
+            <div style="padding:8px 10px 0">
+              <div style="font-family:'Playfair Display',serif;font-size:0.9rem;color:#1a1a14;margin-bottom:2px">Dietary Prefs</div>
+              <div style="font-size:0.52rem;color:#8a7a60;margin-bottom:8px">Select all that apply</div>
+              ${[["🌱","Vegetarian",true],["🥗","Vegan",false],["🌾","Gluten-Free",false],["⏱️","Quick Meals",true],["🥩","Keto",false],["👨‍👩‍👧","Family Friendly",false]].map(([e,l,on])=>`
+                <div style="display:flex;align-items:center;gap:6px;padding:5px 7px;border:1px solid ${on?'#3a6b48':'#e0d8c8'};border-radius:6px;margin-bottom:4px;background:${on?'#e8f0e4':'#fff'}">
+                  <span style="font-size:0.8rem">${e}</span>
+                  <span style="font-size:0.6rem;font-weight:500;color:#2a2010">${l}</span>
+                  ${on?'<span style="margin-left:auto;color:#3a6b48;font-size:0.65rem">✓</span>':''}
+                </div>
+              `).join('')}
+              <div class="pm-btn" style="margin-top:6px">Start Tracking →</div>
+            </div>
+          </div>
+          <div class="phone-caption">Personalization drives<br>AI recipe engine</div>
+        </div>
+      </div>
+      <div class="callout green" style="margin-top:10px"><p><strong>UX Note:</strong> Onboarding is 3 steps only. Preferences are optional and editable later. Quick-start allows receipt scan to skip manual setup.</p></div>
+      <div class="page-num">6</div>
+    `
+  }
+},
+
+// ── 4: HOME DASHBOARD ──
+{
+  chapter: "Dashboard",
+  left: {
+    theme: "theme-cream",
+    html: `
+      <div class="screen-title-bar">Screen 3 — Home Dashboard</div>
+      <div class="page-title" style="font-size:1.1rem">Personalized Hub</div>
+      <div class="rule"></div>
+      <div class="two-col-phone" style="justify-content:center">
+        <div class="phone-col">
+          <div class="phone-mock" style="width:155px">
+            <div class="pm-notch"></div>
+            <div class="pm-hero green">
+              <div style="font-size:0.52rem;opacity:.7">Good morning,</div>
+              <div style="font-family:'Playfair Display',serif;font-size:1rem">Alex 👋</div>
+              <div class="pm-stat-row">
+                <div class="pm-stat"><div class="n">24</div><div class="l">Items</div></div>
+                <div class="pm-stat"><div class="n">$12</div><div class="l">Saved</div></div>
+                <div class="pm-stat"><div class="n">3</div><div class="l">Expiring</div></div>
+              </div>
+            </div>
+            <div class="pm-alert">
+              <div class="badge">3</div>
+              <div><strong style="display:block">Items expiring today!</strong>Spinach, Yogurt, Chicken</div>
+            </div>
+            <div class="pm-section">Tonight's Suggestions</div>
+            <div class="pm-recipe-scroll">
+              ${[["🥗","Pasta"],["🍗","Chicken"],["🥘","Curry"]].map(([e,n])=>`
+                <div class="pm-recipe-card">
+                  <div class="rimg">${e}</div>
+                  <div class="rname">${n}</div>
+                </div>
+              `).join('')}
+            </div>
+            <div class="pm-tab-bar">
+              <div class="pm-tab active">🏠<br>Home</div>
+              <div class="pm-tab">🧺<br>Pantry</div>
+              <div class="pm-tab">📸<br>Scan</div>
+              <div class="pm-tab">🛒<br>Shop</div>
+              <div class="pm-tab">👤<br>Profile</div>
+            </div>
+          </div>
+          <div class="phone-caption">Home Dashboard</div>
+        </div>
+      </div>
+      <div class="page-num">7</div>
+    `
+  },
+  right: {
+    theme: "theme-warm",
+    html: `
+      <div class="page-subtitle" style="margin-top:0">Dashboard Elements</div>
+      <div class="rule"></div>
+      <div class="flow-step">
+        <div class="step-num-circle">1</div>
+        <div class="step-text">
+          <strong>Personalized Greeting + Stats</strong>
+          <span>Pantry count, money saved this week, expiring items count — at-a-glance KPIs for the user's household.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num-circle">2</div>
+        <div class="step-text">
+          <strong>Expiry Alert Strip</strong>
+          <span>High-visibility warning showing items expiring today. Tapping navigates to Pantry with urgent items highlighted.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num-circle">3</div>
+        <div class="step-text">
+          <strong>AI Recipe Suggestions</strong>
+          <span>Horizontal scroll card tray showing recipes generated from available (especially expiring) ingredients. Recipes are ranked by how many pantry items they use.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num-circle">4</div>
+        <div class="step-text">
+          <strong>Bottom Tab Navigation</strong>
+          <span>Persistent 5-tab nav: Home, Pantry, Scan (camera), Shop, Profile. Scan tab is center-anchored as primary action.</span>
+        </div>
+      </div>
+      <div class="callout" style="margin-top:4px"><p><strong>Design Principle:</strong> The dashboard surfaces the most urgent action first (expiry alert), then delight (recipe ideas). No user has to hunt for what to do.</p></div>
+      <div class="page-num">8</div>
+    `
+  }
+},
+
+// ── 5: PANTRY ──
+{
+  chapter: "Pantry",
+  left: {
+    theme: "theme-cream",
+    html: `
+      <div class="screen-title-bar">Screen 4 — Pantry Inventory</div>
+      <div class="page-title" style="font-size:1.1rem">Your Digital Kitchen</div>
+      <div class="rule"></div>
+      <div class="two-col-phone" style="justify-content:center">
+        <div class="phone-col">
+          <div class="phone-mock" style="width:155px">
+            <div class="pm-notch"></div>
+            <div class="pm-status"><span>9:41</span><span>100%</span></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px 4px">
+              <div style="font-family:'Playfair Display',serif;font-size:0.9rem">My Pantry</div>
+              <div style="background:#e8f0e4;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:0.75rem">+</div>
+            </div>
+            <div style="margin:0 10px 5px;background:#f0ebe4;border-radius:6px;padding:5px 8px;font-size:0.58rem;color:#aaa">🔍 Search ingredients…</div>
+            <div style="display:flex;gap:4px;padding:0 10px 5px;overflow:hidden">
+              ${["All (24)","🥬 Produce","🥩 Protein","🥛 Dairy"].map((c,i)=>`<div style="padding:3px 7px;background:${i===0?'#3a6b48':'#f0ebe4'};color:${i===0?'#fff':'#8a7a60'};border-radius:20px;font-size:0.5rem;white-space:nowrap">${c}</div>`).join('')}
+            </div>
+            <div style="font-size:0.5rem;padding:3px 10px;color:#c03030;font-weight:700;background:#fdeaea">⚠ EXPIRING SOON</div>
+            <div class="pm-row"><div class="dot-bad"></div><span>🥬 Spinach — 200g</span><span class="tag-red" style="margin-left:auto">Today!</span></div>
+            <div class="pm-row"><div class="dot-bad"></div><span>🍗 Chicken — 450g</span><span class="tag-red" style="margin-left:auto">Today!</span></div>
+            <div class="pm-row"><div class="dot-warn"></div><span>🥛 Greek Yogurt</span><span class="tag-warn" style="margin-left:auto">Tomorrow</span></div>
+            <div style="font-size:0.5rem;padding:3px 10px;color:#2a7a3a;font-weight:700;background:#e8f0e4">✓ GOOD TO GO</div>
+            <div class="pm-row"><div class="dot-ok"></div><span>🥕 Carrots</span><span class="tag-green" style="margin-left:auto">5 days</span></div>
+            <div class="pm-row"><div class="dot-ok"></div><span>🧄 Garlic</span><span class="tag-green" style="margin-left:auto">3 weeks</span></div>
+            <div class="pm-tab-bar">
+              <div class="pm-tab">🏠</div><div class="pm-tab active">🧺</div><div class="pm-tab">📸</div><div class="pm-tab">🛒</div><div class="pm-tab">👤</div>
+            </div>
+          </div>
+          <div class="phone-caption">Pantry with color-coded expiry</div>
+        </div>
+      </div>
+      <div class="page-num">9</div>
+    `
+  },
+  right: {
+    theme: "theme-sage",
+    html: `
+      <div class="page-subtitle">Pantry Features</div>
+      <div class="rule"></div>
+      <div class="flow-step">
+        <div class="step-num-circle" style="background:#c03030">!</div>
+        <div class="step-text">
+          <strong>Expiry Color Coding</strong>
+          <span>Red = expires today, Orange = tomorrow, Green = safe. Items auto-sort with urgent items on top. Users can tap any item for recipe suggestions using that ingredient.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num-circle">2</div>
+        <div class="step-text">
+          <strong>Category Filters</strong>
+          <span>Filter by storage location (Fridge, Freezer, Pantry) or food type (Produce, Protein, Dairy). Chip-style filter tabs are scrollable.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num-circle">3</div>
+        <div class="step-text">
+          <strong>Quick Add (+ button)</strong>
+          <span>Opens scan modal to add items via camera, barcode, receipt, or manual search. Most users use camera scan after a grocery run.</span>
+        </div>
+      </div>
+      <div class="callout red"><p><strong>Use Case:</strong> Alex sees spinach flagged red. She taps it — the app immediately shows 3 recipes using spinach and offers to add missing ingredients to her shopping list.</p></div>
+      <div class="ux-note">Pantry is the source of truth. All recipe suggestions and shopping lists derive from pantry state.</div>
+      <div class="page-num">10</div>
+    `
+  }
+},
+
+// ── 6: RECIPE ──
+{
+  chapter: "Recipes",
+  left: {
+    theme: "theme-cream",
+    html: `
+      <div class="screen-title-bar">Screen 5 — AI Recipe Detail</div>
+      <div class="page-title" style="font-size:1.1rem">Cook With What You Have</div>
+      <div class="rule"></div>
+      <div class="two-col-phone" style="justify-content:center">
+        <div class="phone-col">
+          <div class="phone-mock" style="width:155px">
+            <div class="pm-notch"></div>
+            <div style="height:80px;background:linear-gradient(135deg,#3a6b48,#1e4030);display:flex;align-items:flex-end;padding:8px">
+              <div style="font-size:2.2rem;position:absolute;top:20px;left:50%;transform:translateX(-50%)">🍝</div>
+              <div>
+                <div style="font-family:'Playfair Display',serif;font-size:0.85rem;color:#fff">Spinach Pasta</div>
+                <div style="font-size:0.5rem;color:rgba(255,255,255,.65)">Uses expiring spinach · 18 min</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:3px;padding:5px 8px 3px;flex-wrap:wrap">
+              ${["🥬 Expiring","⏱ Quick","🌱 Veg","⭐ 4.8"].map(t=>`<div style="background:#e8f0e4;color:#2a6a3a;padding:1px 5px;border-radius:3px;font-size:0.45rem;font-weight:700">${t}</div>`).join('')}
+            </div>
+            <div style="font-size:0.5rem;padding:3px 10px;font-weight:700;color:#1a1a14">INGREDIENTS</div>
+            ${[["🥬","Spinach 200g","✓"],["🍝","Pasta 250g","✓"],["🧄","Garlic 3 cloves","✓"],["🧀","Parmesan 50g","✓"],["🫙","Cream 100ml","✗"]].map(([e,n,s])=>`
+              <div class="pm-row">${e} <span style="flex:1;margin-left:4px">${n}</span><span style="color:${s==='✓'?'#3a6b48':'#c03030'};font-weight:700;font-size:0.55rem">${s}</span></div>
+            `).join('')}
+            <div class="pm-btn">🛒 Add Missing to Cart</div>
+            <div class="pm-btn outline">📅 Add to Meal Plan</div>
+          </div>
+          <div class="phone-caption">Recipe detail with pantry status</div>
+        </div>
+      </div>
+      <div class="page-num">11</div>
+    `
+  },
+  right: {
+    theme: "theme-warm",
+    html: `
+      <div class="page-subtitle">AI Recipe Engine</div>
+      <div class="rule"></div>
+      <div class="flow-step">
+        <div class="step-num-circle">1</div>
+        <div class="step-text">
+          <strong>Ingredient Matching</strong>
+          <span>Each ingredient shows ✓ (in pantry) or ✗ (missing). The AI prioritizes recipes maximizing pantry usage, especially expiring items.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num-circle">2</div>
+        <div class="step-text">
+          <strong>"Use-it-up" Mode</strong>
+          <span>When items are expiring today, the AI promotes those recipes to the top of all suggestion lists with a 🥬 badge.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num-circle">3</div>
+        <div class="step-text">
+          <strong>One-Tap Cart Action</strong>
+          <span>Missing ingredients (✗) are added to the shopping list in a single tap. No manual typing required.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num-circle">4</div>
+        <div class="step-text">
+          <strong>Step-by-Step Cooking</strong>
+          <span>Full recipe steps with built-in timers, serving adjustments, and nutritional breakdown per serving.</span>
+        </div>
+      </div>
+      <div class="callout green"><p><strong>Personalization:</strong> The engine learns from ratings, cooking history, and dietary filters. Recipe quality improves with every interaction via collaborative filtering + reinforcement learning.</p></div>
+      <div class="page-num">12</div>
+    `
+  }
+},
+
+// ── 7: SCAN ──
+{
+  chapter: "Scan",
+  left: {
+    theme: "theme-cream",
+    html: `
+      <div class="screen-title-bar">Screen 6 — Scan & Add Items</div>
+      <div class="page-title" style="font-size:1.1rem">Zero-Friction Input</div>
+      <div class="rule"></div>
+      <div class="two-col-phone">
+        <div class="phone-col">
+          <div class="phone-mock" style="width:130px">
+            <div class="pm-notch"></div>
+            <div class="pm-status" style="background:#111;color:#666"><span>9:41</span><span>100%</span></div>
+            <div style="background:#111;padding:4px 10px 4px">
+              <div style="display:flex;background:rgba(255,255,255,.08);border-radius:5px;overflow:hidden">
+                ${["📸 Camera","🧾 Receipt","📦 Barcode"].map((t,i)=>`<div style="flex:1;padding:4px 2px;text-align:center;font-size:0.45rem;background:${i===0?'#3a6b48':'transparent'};color:${i===0?'#fff':'rgba(255,255,255,.4)'}">${t}</div>`).join('')}
+              </div>
+            </div>
+            <div class="pm-scan-bg">
+              <div class="pm-scan-frame">🥦<div class="pm-scan-line"></div></div>
+              <div class="pm-scan-hint">Point at produce or packaging</div>
+            </div>
+          </div>
+          <div class="phone-caption">Camera scan mode</div>
+        </div>
+        <div class="phone-col">
+          <div class="phone-mock" style="width:130px">
+            <div class="pm-notch"></div>
+            <div class="pm-status"><span>9:41</span><span>100%</span></div>
+            <div style="background:#111;height:60px;display:flex;align-items:center;justify-content:center;font-size:2rem;gap:6px">🥦 🧅 🍋</div>
+            <div style="background:#fff;border-radius:14px 14px 0 0;margin-top:-10px;padding:10px 10px 0">
+              <div style="font-size:0.6rem;color:#3a6b48;font-weight:700;margin-bottom:6px">✓ Recognized 3 items</div>
+              ${[["🥦","Broccoli","1 head · Oct 8"],["🧅","Red Onion","2 count · Oct 20"],["🍋","Lemons","3 count · Oct 15"]].map(([e,n,d])=>`
+                <div style="display:flex;align-items:center;gap:6px;padding:5px 8px;background:#f8f4ee;border-radius:6px;margin-bottom:4px">
+                  <span style="font-size:0.9rem">${e}</span>
+                  <div><div style="font-size:0.6rem;font-weight:700">${n}</div><div style="font-size:0.52rem;color:#8a7a60">${d}</div></div>
+                </div>
+              `).join('')}
+              <div class="pm-btn">Add All to Pantry ✓</div>
+            </div>
+          </div>
+          <div class="phone-caption">AI recognition result</div>
+        </div>
+      </div>
+      <div class="page-num">13</div>
+    `
+  },
+  right: {
+    theme: "theme-amber",
+    html: `
+      <div class="page-subtitle">How Scanning Works</div>
+      <div class="rule"></div>
+      <div class="flow-step">
+        <div class="step-num-circle">1</div>
+        <div class="step-text">
+          <strong>Three Input Methods</strong>
+          <span>Camera (computer vision for produce), Receipt scan (OCR reads grocery receipt), Barcode scan (packaged items). Manual entry available as fallback.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num-circle">2</div>
+        <div class="step-text">
+          <strong>AI Recognition (TensorFlow + MobileNet)</strong>
+          <span>The camera mode uses MobileNet + YOLO to identify produce and packaged items in real time. No barcode needed for fruits, vegetables, or bulk items.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num-circle">3</div>
+        <div class="step-text">
+          <strong>Auto-Fill Expiry Dates</strong>
+          <span>Expiry dates are pre-populated from a food database (USDA FoodData Central) based on item type and storage location. Users can edit before confirming.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num-circle">4</div>
+        <div class="step-text">
+          <strong>Confirm & Add</strong>
+          <span>User reviews recognized items and taps "Add All." The pantry updates instantly. Average time from photo to pantry: under 30 seconds.</span>
+        </div>
+      </div>
+      <div class="callout" style="margin-top:4px"><p><strong>Receipt Mode:</strong> Google Cloud Vision API reads the receipt text and matches items against the food database — populating 15–30 items in one scan.</p></div>
+      <div class="page-num">14</div>
+    `
+  }
+},
+
+// ── 8: SHOPPING LIST ──
+{
+  chapter: "Shopping",
+  left: {
+    theme: "theme-cream",
+    html: `
+      <div class="screen-title-bar">Screen 7 — Smart Shopping List</div>
+      <div class="page-title" style="font-size:1.1rem">Always Know What to Buy</div>
+      <div class="rule"></div>
+      <div class="two-col-phone" style="justify-content:center">
+        <div class="phone-col">
+          <div class="phone-mock" style="width:155px">
+            <div class="pm-notch"></div>
+            <div class="pm-status"><span>9:41</span><span>100%</span></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px 4px">
+              <div style="font-family:'Playfair Display',serif;font-size:0.9rem">Shopping List</div>
+            </div>
+            <div style="display:flex;gap:5px;padding:0 10px 6px">
+              ${[["8","Items"],["$24","Est."],["3/8","Done"]].map(([n,l])=>`<div style="flex:1;background:#f8f4ee;border-radius:5px;padding:5px;text-align:center"><div style="font-size:0.85rem;font-weight:700;color:#1a1a14">${n}</div><div style="font-size:0.48rem;color:#8a7a60">${l}</div></div>`).join('')}
+            </div>
+            <div class="pm-section">🥬 Produce</div>
+            ${[["Bell Peppers","2 count",false],["Lemons","2 pack",false]].map(([n,q,done])=>`
+              <div class="pm-row">
+                <div style="width:14px;height:14px;border-radius:50%;border:1.5px solid #ccc;display:flex;align-items:center;justify-content:center;font-size:0.5rem;flex-shrink:0">${done?'✓':''}</div>
+                <span style="flex:1;${done?'text-decoration:line-through;color:#aaa':''}">${n}</span><span class="ml-auto">${q}</span>
+              </div>
+            `).join('')}
+            <div class="pm-section">🥛 Dairy</div>
+            ${[["Heavy Cream","100ml",false],["Parmesan","100g",false]].map(([n,q,done])=>`
+              <div class="pm-row">
+                <div style="width:14px;height:14px;border-radius:50%;border:1.5px solid #ccc;display:flex;align-items:center;justify-content:center;font-size:0.5rem;flex-shrink:0">${done?'✓':''}</div>
+                <span style="flex:1">${n}</span><span class="ml-auto">${q}</span>
+              </div>
+            `).join('')}
+            <div class="pm-section">🥫 Pantry</div>
+            ${[["Pasta","500g",true],["Olive Oil","250ml",true],["Chicken Stock","500ml",true]].map(([n,q,done])=>`
+              <div class="pm-row" style="opacity:${done?.6:1}">
+                <div style="width:14px;height:14px;border-radius:50%;background:${done?'#3a6b48':'transparent'};border:1.5px solid ${done?'#3a6b48':'#ccc'};display:flex;align-items:center;justify-content:center;font-size:0.5rem;color:#fff;flex-shrink:0">${done?'✓':''}</div>
+                <span style="flex:1;${done?'text-decoration:line-through;color:#aaa':''}">${n}</span><span class="ml-auto">${q}</span>
+              </div>
+            `).join('')}
+            <div class="pm-btn" style="margin-top:6px">🚀 Order via Instacart</div>
+            <div class="pm-tab-bar">
+              <div class="pm-tab">🏠</div><div class="pm-tab">🧺</div><div class="pm-tab">📸</div><div class="pm-tab active">🛒</div><div class="pm-tab">👤</div>
+            </div>
+          </div>
+          <div class="phone-caption">Items sorted by store aisle</div>
+        </div>
+      </div>
+      <div class="page-num">15</div>
+    `
+  },
+  right: {
+    theme: "theme-warm",
+    html: `
+      <div class="page-subtitle">Shopping List Intelligence</div>
+      <div class="rule"></div>
+      <div class="flow-step">
+        <div class="step-num-circle">1</div>
+        <div class="step-text">
+          <strong>Auto-Generated from Meal Plan</strong>
+          <span>When Alex picks recipes for the week, all missing ingredients are automatically added to the shopping list. No manual entry needed.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num-circle">2</div>
+        <div class="step-text">
+          <strong>Sorted by Store Aisle</strong>
+          <span>Items are organized by aisle (Produce → Dairy → Pantry). Users can customize the aisle map for their preferred store to match the physical layout.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num-circle">3</div>
+        <div class="step-text">
+          <strong>Smart Quantity Calculation</strong>
+          <span>If Alex already has 1 cup of pasta, the app only adds the remaining needed amount — no over-buying.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num-circle">4</div>
+        <div class="step-text">
+          <strong>Instacart Integration</strong>
+          <span>One tap sends the whole list to Instacart for same-day delivery. Price comparison across Kroger, Walmart, and Amazon Fresh is shown inline.</span>
+        </div>
+      </div>
+      <div class="callout green"><p><strong>Family Sharing:</strong> Lists sync in real-time across household members. Alex can assign items to her partner Jamie, who gets a notification on their phone.</p></div>
+      <div class="page-num">16</div>
+    `
+  }
+},
+
+// ── 9: MEAL PLAN ──
+{
+  chapter: "Meal Plan",
+  left: {
+    theme: "theme-cream",
+    html: `
+      <div class="screen-title-bar">Screen 8 — Weekly Meal Planner</div>
+      <div class="page-title" style="font-size:1.1rem">Plan the Whole Week</div>
+      <div class="rule"></div>
+      <div class="two-col-phone" style="justify-content:center">
+        <div class="phone-col">
+          <div class="phone-mock" style="width:155px">
+            <div class="pm-notch"></div>
+            <div class="pm-status"><span>9:41</span><span>100%</span></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px 4px">
+              <span style="font-size:0.7rem;color:#888">‹</span>
+              <div style="font-family:'Playfair Display',serif;font-size:0.9rem">October 2024</div>
+              <span style="font-size:0.7rem;color:#888">›</span>
+            </div>
+            <div style="display:flex;margin:0 10px 8px;background:#f0ebe4;border-radius:7px;overflow:hidden">
+              ${[["M","7"],["T","8"],["W","9"],["T","10"],["F","11"],["S","12"],["S","13"]].map(([d,n],i)=>`
+                <div style="flex:1;text-align:center;padding:4px 1px;${i===2?'background:#3a6b48;color:#fff;border-radius:7px':''}">
+                  <div style="font-size:0.65rem;font-weight:700">${n}</div>
+                  <div style="font-size:0.45rem;opacity:.7">${d}</div>
+                </div>
+              `).join('')}
+            </div>
+            ${[
+              ["Breakfast","🥞","Oat Pancakes","320 cal"],
+              ["Lunch","🥗","Green Salad","280 cal"],
+              ["Dinner","🍝","Spinach Pasta","520 cal · Uses expiring!"],
+            ].map(([slot,e,name,meta])=>`
+              <div style="margin:0 10px 5px;background:#fff;border-radius:7px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.05)">
+                <div style="background:#f8f4ee;padding:3px 8px;font-size:0.5rem;font-weight:700;text-transform:uppercase;color:#8a7a60">${slot}</div>
+                <div style="display:flex;align-items:center;gap:6px;padding:6px 8px">
+                  <span style="font-size:1.1rem">${e}</span>
+                  <div><div style="font-size:0.6rem;font-weight:700">${name}</div><div style="font-size:0.5rem;color:#8a7a60">${meta}</div></div>
+                </div>
+              </div>
+            `).join('')}
+            <div style="margin:0 10px;background:#fff;border-radius:7px;padding:8px;font-size:0.58rem;color:#3a6b48;font-weight:500">+ Add Thursday Dinner</div>
+          </div>
+          <div class="phone-caption">Weekly meal calendar</div>
+        </div>
+      </div>
+      <div class="page-num">17</div>
+    `
+  },
+  right: {
+    theme: "theme-sage",
+    html: `
+      <div class="page-subtitle">Meal Planning Features</div>
+      <div class="rule"></div>
+      <div class="flow-step">
+        <div class="step-num-circle">1</div>
+        <div class="step-text">
+          <strong>7-Day Calendar View</strong>
+          <span>Breakfast, lunch, and dinner slots for each day. Tap any slot to browse AI recipe suggestions filtered for that meal type and time constraint.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num-circle">2</div>
+        <div class="step-text">
+          <strong>Expiry-Aware Suggestions</strong>
+          <span>When planning, the AI prioritizes recipes that use items expiring soonest. Wednesday's dinner shows "Uses expiring!" because spinach expires that day.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num-circle">3</div>
+        <div class="step-text">
+          <strong>Auto-Generate Week</strong>
+          <span>One tap generates a full week of meals balanced by nutrition, variety, and expiry priority. Users can swap individual meals they don't like.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num-circle">4</div>
+        <div class="step-text">
+          <strong>Calendar Sync</strong>
+          <span>Integrates with Google Calendar and Apple Calendar. If the user has a dinner reservation on Friday, that slot is automatically left empty.</span>
+        </div>
+      </div>
+      <div class="callout"><p><strong>Connected to Shopping:</strong> Finalized meal plan → auto-populate shopping list. The two screens form a closed loop.</p></div>
+      <div class="page-num">18</div>
+    `
+  }
+},
+
+// ── 10: INSIGHTS ──
+{
+  chapter: "Insights",
+  left: {
+    theme: "theme-cream",
+    html: `
+      <div class="screen-title-bar">Screen 9 — Waste Insights</div>
+      <div class="page-title" style="font-size:1.1rem">See Your Impact</div>
+      <div class="rule"></div>
+      <div class="two-col-phone" style="justify-content:center">
+        <div class="phone-col">
+          <div class="phone-mock" style="width:155px">
+            <div class="pm-notch"></div>
+            <div class="pm-status"><span>9:41</span><span>100%</span></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px 8px">
+              <div style="font-family:'Playfair Display',serif;font-size:0.9rem">My Impact</div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:0 10px 6px">
+              <div style="background:#fff;border-radius:7px;padding:8px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+                <div style="font-size:0.48rem;text-transform:uppercase;color:#8a7a60;font-weight:700">Saved</div>
+                <div style="font-family:'Playfair Display',serif;font-size:1.4rem;color:#3a6b48">$48</div>
+                <div style="font-size:0.48rem;color:#8a7a60">↑ +$12 this month</div>
+              </div>
+              <div style="background:#fff;border-radius:7px;padding:8px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+                <div style="font-size:0.48rem;text-transform:uppercase;color:#8a7a60;font-weight:700">Food Saved</div>
+                <div style="font-family:'Playfair Display',serif;font-size:1.4rem;color:#c8a830">2.4kg</div>
+                <div style="font-size:0.48rem;color:#8a7a60">Waste down 34%</div>
+              </div>
+            </div>
+            <div style="padding:0 10px 6px">
+              <div style="background:#fff;border-radius:7px;padding:8px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+                <div style="font-size:0.5rem;font-weight:700;color:#1a1a14;margin-bottom:5px">October Goal — 50% waste reduction</div>
+                <div class="pm-progress-track"><div class="pm-progress-fill" style="width:68%"></div></div>
+                <div style="font-size:0.48rem;color:#8a7a60;margin-top:3px;text-align:right">68% achieved 🎉</div>
+              </div>
+            </div>
+            <div style="padding:0 10px 5px;font-size:0.5rem;font-weight:700;color:#1a1a14">ACHIEVEMENTS</div>
+            <div class="pm-badge-row">
+              ${[["🌱","First Save"],["♻️","Zero Waste"],["🔥","7-Day"],["👨‍🍳","Chef"]].map(([e,l])=>`<div class="pm-badge"><span>${e}</span>${l}</div>`).join('')}
+              ${[["💚","Eco Hero"],["🏆","1K Club"]].map(([e,l])=>`<div class="pm-badge" style="opacity:.3;filter:grayscale(1)"><span>${e}</span>${l}</div>`).join('')}
+            </div>
+            <div class="pm-btn" style="background:#c8a830;margin:6px 10px 10px">📤 Share My Impact</div>
+          </div>
+          <div class="phone-caption">Impact dashboard with badges</div>
+        </div>
+      </div>
+      <div class="page-num">19</div>
+    `
+  },
+  right: {
+    theme: "theme-amber",
+    html: `
+      <div class="page-subtitle">Gamification & Retention</div>
+      <div class="rule"></div>
+      <div class="flow-step">
+        <div class="step-num-circle">1</div>
+        <div class="step-text">
+          <strong>Real Dollar Savings</strong>
+          <span>The app tracks every item used before expiry and calculates money saved. $48 saved in a month is a tangible, motivating number — not abstract "impact."</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num-circle">2</div>
+        <div class="step-text">
+          <strong>Environmental Metrics</strong>
+          <span>Shows kg CO₂ saved, liters of water saved, and percentage waste reduction vs. household baseline. Makes abstract sustainability concrete.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num-circle">3</div>
+        <div class="step-text">
+          <strong>Achievement Badges</strong>
+          <span>Badges unlock for streaks (7-day usage), milestones ($1,000 saved), and sustainability goals. Locked badges show what's next, creating a progression loop.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num-circle">4</div>
+        <div class="step-text">
+          <strong>Shareable Reports</strong>
+          <span>"I saved $48 and 2.4kg of food this month!" — one-tap share to Instagram with a custom branded graphic. Drives organic referral growth.</span>
+        </div>
+      </div>
+      <div class="callout"><p><strong>Retention Strategy:</strong> Weekly email summaries + daily push notifications + streak mechanics target 70% monthly active users.</p></div>
+      <div class="page-num">20</div>
+    `
+  }
+},
+
+// ── 11: USER JOURNEY 1 ──
+{
+  chapter: "Journey 1",
+  left: {
+    theme: "theme-dark",
+    html: `
+      <div class="page-subtitle light">User Journey</div>
+      <div class="page-title light" style="font-size:1.2rem">☀️ Alex's Morning</div>
+      <div class="rule dark"></div>
+      <p class="body-text light" style="margin-bottom:12px">It's 7am Wednesday. Alex opens SmartPantry with her coffee.</p>
+      ${[
+        ["7:00am","Opens app","Home dashboard loads. 3 items flagged expiring today — spinach, chicken, yogurt."],
+        ["7:02am","Sees alert","Taps the orange alert strip. Pantry opens, urgent items highlighted red at the top."],
+        ["7:03am","Finds a fix","Taps spinach → AI shows Spinach Pasta recipe. All ingredients available except cream."],
+        ["7:04am","Adds to list","Taps 'Add Missing to Cart.' Cream added to tonight's shopping list automatically."],
+        ["7:05am","Plans dinner","Taps 'Add to Meal Plan.' Spinach Pasta slots into Wednesday Dinner on the calendar."],
+      ].map(([time,act,desc],i)=>`
+        <div class="flow-step" style="margin-bottom:8px">
+          <div class="step-num-circle" style="background:rgba(200,168,48,.8)">${i+1}</div>
+          <div class="step-text">
+            <strong style="color:#e8dfc8">${time} — ${act}</strong>
+            <span style="color:#7a9a7a">${desc}</span>
+          </div>
+        </div>
+      `).join('')}
+      <div class="page-num" style="color:#3a4030">21</div>
+    `
+  },
+  right: {
+    theme: "theme-sage",
+    html: `
+      <div class="page-subtitle">Journey Screens</div>
+      <div class="page-title" style="font-size:1rem">Morning Flow Screens</div>
+      <div class="rule"></div>
+      <div style="display:flex;gap:10px;align-items:flex-start;justify-content:center;margin-bottom:10px">
+        ${[
+          ["Home","🏠","Dashboard with expiry alert"],
+          ["Pantry","🧺","Spinach highlighted red"],
+          ["Recipe","🍝","Pasta with 4/5 ingredients"],
+        ].map(([l,e,d])=>`
+          <div style="flex:1;text-align:center">
+            <div style="width:60px;height:80px;background:linear-gradient(135deg,#3a6b48,#1e4030);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.8rem;margin:0 auto 5px;box-shadow:0 3px 10px rgba(0,0,0,.15)">${e}</div>
+            <div style="font-size:0.62rem;font-weight:700;color:#1a1a14">${l}</div>
+            <div style="font-size:0.55rem;color:#7a6840;line-height:1.3;margin-top:2px">${d}</div>
+          </div>
+        `).join('')}
+      </div>
+      <div style="text-align:center;font-size:0.6rem;color:#8a7a60;margin-bottom:10px">→ → →</div>
+      <div class="callout green"><p><strong>Total time: 5 minutes.</strong> Alex identified 3 expiring items, found a recipe for tonight, and added 1 missing ingredient to her shopping list — all before finishing her coffee.</p></div>
+      <div style="margin-top:10px">
+        <div style="font-size:0.65rem;font-weight:700;color:#1a1a14;margin-bottom:6px">Why Each Screen Exists</div>
+        <div style="font-size:0.68rem;color:#3a3020;line-height:1.6">
+          <strong>Home →</strong> Surface urgent info immediately<br>
+          <strong>Pantry →</strong> Verify what needs to be used<br>
+          <strong>Recipe →</strong> Answer "what do I cook?" instantly<br>
+          <strong>Shopping →</strong> Handle any gaps without a separate app
+        </div>
+      </div>
+      <div class="page-num">22</div>
+    `
+  }
+},
+
+// ── 12: USER JOURNEY 2 ──
+{
+  chapter: "Journey 2",
+  left: {
+    theme: "theme-amber",
+    html: `
+      <div class="page-subtitle">User Journey</div>
+      <div class="page-title" style="font-size:1.2rem">🛒 Grocery Run</div>
+      <div class="rule"></div>
+      <p class="body-text" style="margin-bottom:12px">Saturday: Alex returns from Whole Foods with 2 bags of groceries.</p>
+      ${[
+        ["Step 1","Open Scan Tab","Alex taps the camera icon in the tab bar. The scan screen opens in camera mode."],
+        ["Step 2","Photograph produce","She holds her phone over the produce bag. App recognizes broccoli, red onion, and lemons in 3 seconds."],
+        ["Step 3","Review results","Three items appear with auto-filled names and predicted expiry dates. She edits 'Lemons' qty from 2→3."],
+        ["Step 4","Snap the receipt","She switches to Receipt mode and photographs the Whole Foods receipt. 12 more items are detected via OCR."],
+        ["Step 5","Pantry updated","All 15 items are added. Pantry now shows 39 items, with new items highlighted in green."],
+      ].map(([step,act,desc])=>`
+        <div style="margin-bottom:9px;padding-bottom:9px;border-bottom:1px solid #e0d8c0">
+          <div style="font-size:0.6rem;font-weight:700;text-transform:uppercase;color:#7a5a00;letter-spacing:.8px;margin-bottom:2px">${step} — ${act}</div>
+          <div style="font-size:0.7rem;color:#2a2010;line-height:1.5">${desc}</div>
+        </div>
+      `).join('')}
+      <div class="page-num">23</div>
+    `
+  },
+  right: {
+    theme: "theme-warm",
+    html: `
+      <div class="page-subtitle">User Journey</div>
+      <div class="page-title" style="font-size:1.2rem">⚠️ Expiry Alert</div>
+      <div class="rule"></div>
+      <p class="body-text" style="margin-bottom:10px">Thursday 6pm: Alex gets a push notification — <em>"🥬 Spinach expires tomorrow!"</em></p>
+      ${[
+        ["Notification","Push alert arrives on lock screen. She taps it — app opens directly to the expiry detail."],
+        ["Pantry View","Spinach is at the top, flagged red. The app suggests: 'Use in a recipe tonight or freeze it.'"],
+        ["Recipe Match","AI surfaces Spinach Frittata using 5 pantry items. All in stock — no shopping needed."],
+        ["Quick Cook","She taps 'Start Cooking.' Step-by-step instructions open. Built-in timer for the 12-minute cook."],
+        ["Waste Avoided","After cooking, she marks spinach as 'Used.' Her waste reduction counter ticks up by 200g."],
+      ].map(([act,desc],i)=>`
+        <div class="flow-step" style="margin-bottom:7px">
+          <div class="step-num-circle" style="background:#c8a830;color:#1a1a14">${i+1}</div>
+          <div class="step-text">
+            <strong>${act}</strong>
+            <span>${desc}</span>
+          </div>
+        </div>
+      `).join('')}
+      <div class="callout red" style="margin-top:4px"><p><strong>Without SmartPantry:</strong> The spinach would likely have been thrown out Friday morning. SmartPantry turned $3 of waste into dinner.</p></div>
+      <div class="page-num">24</div>
+    `
+  }
+},
+
+// ── 13: BACK COVER ──
+{
+  chapter: "End",
+  left: {
+    theme: "theme-warm",
+    html: `
+      <div class="page-subtitle">Summary</div>
+      <div class="page-title">Screens Covered</div>
+      <div class="rule"></div>
+      ${[
+        ["Onboarding","Splash, Sign Up, Dietary Preferences"],
+        ["Home","Personalized dashboard, stats, alerts"],
+        ["Pantry","Inventory with color-coded expiry"],
+        ["Recipes","AI suggestions from available items"],
+        ["Scan","Camera, barcode, receipt input modes"],
+        ["Shopping","Auto-generated, aisle-sorted list"],
+        ["Meal Plan","Weekly calendar with expiry awareness"],
+        ["Insights","Savings, impact metrics, badges"],
+        ["Notifications","Expiry alerts, achievements, tips"],
+      ].map(([s,d])=>`
+        <div style="display:flex;gap:10px;align-items:baseline;padding:5px 0;border-bottom:1px dotted #d8d0b8">
+          <span style="font-size:0.72rem;font-weight:700;color:#1a1a14;min-width:80px">${s}</span>
+          <span style="font-size:0.68rem;color:#5a5040">${d}</span>
+        </div>
+      `).join('')}
+      <div class="ux-note" style="margin-top:10px">All screens prioritize minimal manual input, proactive communication, and closed-loop flows (pantry → recipe → shopping → pantry).</div>
+      <div class="page-num">25</div>
+    `
+  },
+  right: {
+    theme: "theme-cover",
+    html: `
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:14px">
+        <div style="font-size:3rem">🥬</div>
+        <div style="font-family:'Playfair Display',serif;font-size:1.5rem;color:#e8dfc8;line-height:1.2">Smart<em style="color:#c8a830">Pantry</em></div>
+        <div style="height:1px;background:linear-gradient(to right,transparent,#c8a830,transparent);width:60%"></div>
+        <p style="font-size:0.72rem;color:#7a6840;line-height:1.6;max-width:180px">"Zero food waste is not a utopian ideal — it's a UX problem."</p>
+        <div style="background:rgba(200,168,48,.08);border:1px solid rgba(200,168,48,.2);border-radius:8px;padding:12px 16px;width:100%;max-width:200px">
+          <div style="font-size:0.6rem;color:#7a6840;margin-bottom:6px">Project Info</div>
+          <div style="font-size:0.65rem;color:#a09060;line-height:1.7">CS 4800.02<br>Software Engineering<br>In-Class Exercise 1<br>Business Plan Prototype</div>
+        </div>
+      </div>
+      <div class="page-num" style="color:#3a3020">26</div>
+    `
+  }
+}
+
+]; // end spreads
+
+// ═══════════════════════════
+// BOOK NAVIGATION
+// ═══════════════════════════
+let current = 0;
+
+function buildBook() {
+  const book = document.getElementById('book');
+  book.innerHTML = '';
+  spreads.forEach((s, i) => {
+    const div = document.createElement('div');
+    div.className = 'spread' + (i === 0 ? ' active' : '');
+    div.id = 'spread-' + i;
+    div.innerHTML = `
+      <div class="page left ${s.left.theme}">
+        <div class="page-inner">${s.left.html}</div>
+      </div>
+      <div class="page right ${s.right.theme}">
+        <div class="page-inner">${s.right.html}</div>
+      </div>
+    `;
+    book.appendChild(div);
+  });
+}
+
+function buildChapters() {
+  const bar = document.getElementById('chapters');
+  spreads.forEach((s, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'ch-btn' + (i === 0 ? ' active' : '');
+    btn.textContent = s.chapter;
+    btn.onclick = () => goTo(i);
+    bar.appendChild(btn);
+  });
+}
+
+function buildDots() {
+  const pd = document.getElementById('pageDots');
+  pd.innerHTML = '';
+  spreads.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'pdot' + (i === current ? ' active' : '');
+    d.onclick = () => goTo(i);
+    pd.appendChild(d);
+  });
+}
+
+function goTo(idx) {
+  document.getElementById('spread-' + current).classList.remove('active');
+  current = idx;
+  document.getElementById('spread-' + current).classList.add('active');
+  // update buttons
+  document.querySelectorAll('.ch-btn').forEach((b, i) => b.classList.toggle('active', i === current));
+  document.querySelectorAll('.pdot').forEach((d, i) => d.classList.toggle('active', i === current));
+  document.getElementById('pageIndicator').textContent = `Spread ${current + 1} of ${spreads.length} — ${spreads[current].chapter}`;
+  document.getElementById('prevBtn').classList.toggle('disabled', current === 0);
+  document.getElementById('nextBtn').classList.toggle('disabled', current === spreads.length - 1);
+  // scroll spreads into view
+  document.getElementById('book').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function prevSpread() { if (current > 0) goTo(current - 1); }
+function nextSpread() { if (current < spreads.length - 1) goTo(current + 1); }
+
+// keyboard
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight') nextSpread();
+  if (e.key === 'ArrowLeft') prevSpread();
+});
+
+buildBook();
+buildChapters();
+buildDots();
+goTo(0);
+</script>
+</body>
+</html>
