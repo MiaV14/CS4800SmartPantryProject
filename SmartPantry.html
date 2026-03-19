@@ -1,0 +1,1532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Smart Pantry</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Fredoka+One&display=swap" rel="stylesheet">
+<style>
+:root{
+  --cream:#FBF5EC;--warm:#F2E0C4;--tan:#E8D0B0;
+  --terra:#C8704A;--terra-l:#E8906A;--terra-xl:#F4C4A8;
+  --sage:#7A9E82;--sage-l:#A8C4AC;--sage-xl:#D4E8D8;
+  --mustard:#D4A83C;--brown:#6A3E28;--brown-m:#9A6040;
+  --text:#3A2418;--muted:#9A7860;
+  --sh:rgba(60,30,10,.12);--sh-l:rgba(60,30,10,.25);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;display:flex;align-items:center;justify-content:center;
+  background:#C8B89A;
+  background-image:radial-gradient(ellipse at 20% 10%,rgba(210,180,130,.6) 0%,transparent 55%),
+                   radial-gradient(ellipse at 85% 90%,rgba(160,120,80,.3) 0%,transparent 50%);
+  font-family:'Nunito',sans-serif}
+.phone{
+  width:375px;height:812px;background:var(--cream);border-radius:52px;overflow:hidden;
+  position:relative;flex-shrink:0;
+  box-shadow:0 0 0 2px rgba(255,255,255,.75) inset,0 0 0 10px rgba(60,30,10,.08) inset,
+             0 50px 120px rgba(40,20,5,.45),0 10px 30px rgba(40,20,5,.2);
+  display:flex;flex-direction:column}
+.status-bar{padding:14px 28px 2px;display:flex;justify-content:space-between;
+  font-size:11px;font-weight:800;color:var(--muted);flex-shrink:0}
+.screen{flex:1;overflow:hidden;display:none;flex-direction:column;min-height:0}
+.screen.active{display:flex}
+.scroll{flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+
+/* ── SHARED BUTTONS ── */
+.btn-primary{
+  width:100%;padding:14px;border-radius:16px;border:none;cursor:pointer;
+  font-family:'Nunito',sans-serif;font-weight:800;font-size:15px;
+  background:linear-gradient(135deg,var(--terra),var(--terra-l));color:#fff;
+  box-shadow:0 6px 22px rgba(200,112,74,.4);transition:transform .12s,opacity .15s;margin-top:4px}
+.btn-primary:hover{transform:scale(1.02)}
+.btn-primary:disabled{opacity:.55;cursor:not-allowed;transform:none}
+.btn-ghost{background:var(--warm);color:var(--brown);box-shadow:none}
+.btn-danger{background:#FFEBE8;color:var(--terra)}
+.btn-sage{background:linear-gradient(135deg,var(--sage),#5A8060);
+  box-shadow:0 4px 14px rgba(122,158,130,.4)}
+
+/* ── FIELD ── */
+.field{margin-bottom:12px}
+.field-label{font-size:10px;font-weight:800;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px}
+.field-input{
+  width:100%;border:2px solid var(--warm);border-radius:14px;
+  padding:12px 16px;font-family:'Nunito',sans-serif;font-size:14px;
+  font-weight:700;color:var(--text);background:#fff;outline:none;transition:border-color .15s}
+.field-input:focus{border-color:var(--terra)}
+.field-input.err{border-color:#E05050}
+.field-err{font-size:11px;font-weight:700;color:#E05050;margin-top:-6px;display:none}
+
+/* ══════════════════════════════
+   AUTH SCREEN
+══════════════════════════════ */
+.auth-wrap{
+  flex:1;display:flex;flex-direction:column;overflow-y:auto;scrollbar-width:none;
+  background:linear-gradient(175deg,#F2E0C4 0%,var(--cream) 45%)}
+.auth-wrap::-webkit-scrollbar{display:none}
+.auth-logo{padding:36px 28px 20px;display:flex;flex-direction:column;align-items:center;gap:8px}
+.auth-logo-icon{
+  width:72px;height:72px;border-radius:26px;
+  background:linear-gradient(135deg,var(--terra),var(--terra-l));
+  display:flex;align-items:center;justify-content:center;font-size:34px;
+  box-shadow:0 10px 30px rgba(200,112,74,.4)}
+.auth-logo-name{font-family:'Fredoka One',cursive;font-size:28px;color:var(--brown)}
+.auth-logo-sub{font-size:11px;font-weight:800;color:var(--muted)}
+.auth-tabs{display:flex;margin:0 24px 20px;background:var(--warm);border-radius:18px;padding:4px;gap:4px}
+.auth-tab{
+  flex:1;padding:9px;border-radius:14px;border:none;cursor:pointer;
+  font-family:'Nunito',sans-serif;font-weight:800;font-size:13px;
+  color:var(--muted);background:transparent;transition:all .2s}
+.auth-tab.on{background:#fff;color:var(--terra);box-shadow:0 2px 8px var(--sh)}
+.auth-form{padding:0 24px 24px;display:flex;flex-direction:column;gap:12px}
+.auth-hint{text-align:center;font-size:11px;font-weight:800;color:var(--muted)}
+.auth-hint span{color:var(--terra);cursor:pointer}
+.global-err{font-size:12px;font-weight:700;color:#E05050;text-align:center;
+  padding:4px 0;display:none;margin-top:-6px}
+
+/* ══════════════════════════════
+   SETUP SCREEN
+══════════════════════════════ */
+.setup-progress{padding:0 24px 16px}
+.prog-bar{height:4px;background:var(--warm);border-radius:2px;overflow:hidden}
+.prog-fill{height:100%;border-radius:2px;
+  background:linear-gradient(90deg,var(--terra),var(--terra-l));transition:width .4s ease}
+.prog-label{font-size:10px;font-weight:800;color:var(--muted);margin-top:6px}
+.setup-step{display:none;flex-direction:column}
+.setup-step.on{display:flex}
+.setup-h{font-family:'Fredoka One',cursive;font-size:22px;color:var(--brown);padding:0 24px 4px}
+.setup-sub{font-size:12px;font-weight:700;color:var(--muted);padding:0 24px 14px;line-height:1.5}
+.avatar-grid{display:flex;flex-wrap:wrap;gap:10px;padding:0 24px 14px;justify-content:center}
+.av-opt{
+  width:52px;height:52px;border-radius:18px;background:var(--warm);
+  display:flex;align-items:center;justify-content:center;font-size:25px;
+  cursor:pointer;border:2.5px solid transparent;transition:all .15s}
+.av-opt.on{border-color:var(--terra);background:var(--terra-xl);transform:scale(1.1)}
+.diet-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 24px 14px}
+.diet-opt{
+  padding:12px 10px;border-radius:14px;background:#fff;border:2px solid var(--warm);
+  cursor:pointer;text-align:center;transition:all .15s;box-shadow:0 2px 8px var(--sh)}
+.diet-opt.on{border-color:var(--terra);background:var(--terra-xl)}
+.diet-icon{font-size:22px;margin-bottom:4px}
+.diet-lbl{font-size:11px;font-weight:800;color:var(--brown)}
+.skill-list{display:flex;flex-direction:column;gap:10px;padding:0 24px 14px}
+.skill-opt{
+  padding:13px 16px;border-radius:14px;background:#fff;border:2px solid var(--warm);
+  cursor:pointer;display:flex;align-items:center;gap:12px;
+  transition:all .15s;box-shadow:0 2px 8px var(--sh)}
+.skill-opt.on{border-color:var(--terra);background:var(--terra-xl)}
+.skill-icon{font-size:24px;flex-shrink:0}
+.skill-name{font-size:13px;font-weight:800;color:var(--brown)}
+.skill-desc{font-size:10px;font-weight:700;color:var(--muted);margin-top:2px}
+.allergy-wrap{display:flex;flex-wrap:wrap;gap:8px;padding:0 24px 14px}
+.al-chip{
+  padding:8px 14px;border-radius:20px;background:#fff;border:2px solid var(--warm);
+  cursor:pointer;font-size:12px;font-weight:800;color:var(--brown-m);transition:all .15s}
+.al-chip.on{border-color:var(--terra);background:var(--terra-xl);color:var(--terra)}
+.hs-section{text-align:center;padding:0 24px 14px}
+.hs-label{font-size:11px;font-weight:800;color:var(--muted);margin-bottom:10px}
+.hs-row{display:flex;align-items:center;justify-content:center;gap:20px}
+.hs-btn{
+  width:44px;height:44px;border-radius:14px;background:var(--warm);border:none;
+  font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:all .12s;color:var(--brown)}
+.hs-btn:hover{background:var(--tan);transform:scale(1.08)}
+.hs-num{font-family:'Fredoka One',cursive;font-size:36px;color:var(--brown);min-width:50px;text-align:center}
+
+/* ══════════════════════════════
+   TOP NAV
+══════════════════════════════ */
+.topnav{
+  padding:4px 20px 10px;display:flex;align-items:center;
+  justify-content:space-between;flex-shrink:0}
+.topnav-title{font-family:'Fredoka One',cursive;font-size:22px;color:var(--brown)}
+.icon-btn{
+  width:38px;height:38px;border-radius:14px;background:var(--warm);border:none;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  font-size:17px;color:var(--brown);font-weight:800;
+  transition:transform .12s,background .15s;box-shadow:0 2px 8px var(--sh);flex-shrink:0}
+.icon-btn:hover{transform:scale(1.06);background:var(--tan)}
+
+/* ══════════════════════════════
+   BOTTOM NAV
+══════════════════════════════ */
+.bottom-nav{
+  height:72px;background:var(--cream);border-top:1.5px solid var(--warm);
+  display:flex;align-items:center;justify-content:space-around;
+  padding:0 8px;flex-shrink:0;box-shadow:0 -4px 20px rgba(60,30,10,.07)}
+.nav-tab{
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+  cursor:pointer;padding:8px 0;border-radius:14px;transition:background .15s}
+.nav-tab:hover{background:var(--warm)}
+.nav-ti{font-size:20px}
+.nav-tl{font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.nav-tab.on .nav-tl{color:var(--terra)}
+.nav-add{
+  width:52px;height:52px;border-radius:20px;
+  background:linear-gradient(135deg,var(--terra),var(--terra-l));
+  color:#fff;font-size:26px;border:none;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;box-shadow:0 6px 20px rgba(200,112,74,.45);
+  transition:transform .12s,box-shadow .12s;flex-shrink:0}
+.nav-add:hover{transform:scale(1.08);box-shadow:0 8px 26px rgba(200,112,74,.55)}
+
+/* ══════════════════════════════
+   HOME
+══════════════════════════════ */
+.hero{
+  margin:8px 16px 0;
+  background:linear-gradient(135deg,var(--terra) 0%,#A85030 100%);
+  border-radius:28px;padding:20px;color:#fff;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at 80% 20%,rgba(255,255,255,.18),transparent 60%)}
+.hero-gr{font-size:13px;font-weight:700;opacity:.85;margin-bottom:2px}
+.hero-ti{font-family:'Fredoka One',cursive;font-size:24px;margin-bottom:6px}
+.hero-st{font-size:12px;opacity:.8;font-weight:700}
+.hero-bd{position:absolute;right:20px;top:50%;transform:translateY(-50%);font-size:42px}
+.sec-lbl{font-family:'Fredoka One',cursive;font-size:17px;color:var(--brown);padding:14px 20px 8px}
+.stats-row{display:flex;gap:10px;padding:0 16px 8px}
+.stat-card{flex:1;background:#fff;border-radius:16px;padding:14px 10px;
+  box-shadow:0 3px 12px var(--sh);text-align:center}
+.stat-n{font-family:'Fredoka One',cursive;font-size:22px;color:var(--terra)}
+.stat-l{font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+.alert-row{display:flex;gap:10px;padding:0 16px 4px;overflow-x:auto;scrollbar-width:none}
+.alert-row::-webkit-scrollbar{display:none}
+.alert-card{
+  flex-shrink:0;width:118px;background:#fff;border-radius:16px;padding:12px;
+  box-shadow:0 3px 12px var(--sh);border-left:3px solid var(--terra);
+  cursor:pointer;transition:transform .12s}
+.alert-card.w{border-left-color:var(--mustard)}
+.alert-card:hover{transform:translateY(-2px)}
+.alert-em{font-size:22px;margin-bottom:6px}
+.alert-nm{font-size:12px;font-weight:800;color:var(--text)}
+.alert-dy{font-size:10px;font-weight:700;color:var(--terra);margin-top:2px}
+.alert-dy.w{color:var(--mustard)}
+.loc-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px 16px}
+.loc-card{
+  background:#fff;border-radius:20px;padding:16px;box-shadow:0 3px 12px var(--sh);
+  cursor:pointer;transition:transform .12s,box-shadow .12s;display:flex;flex-direction:column;gap:8px}
+.loc-card:hover{transform:translateY(-3px);box-shadow:0 8px 24px var(--sh-l)}
+.loc-em{font-size:28px}
+.loc-nm{font-family:'Fredoka One',cursive;font-size:15px;color:var(--brown)}
+.loc-ct{font-size:11px;font-weight:800;color:var(--muted)}
+.loc-bar{height:4px;background:var(--warm);border-radius:2px;overflow:hidden}
+.loc-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--terra),var(--terra-l))}
+.notif{
+  margin:4px 16px 8px;background:linear-gradient(135deg,#FFF8E0,#fff);
+  border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;
+  box-shadow:0 2px 10px var(--sh);border-left:3px solid var(--mustard)}
+.notif-txt{flex:1;font-size:12px;font-weight:700;color:var(--text);line-height:1.4}
+.notif-x{font-size:16px;color:var(--muted);cursor:pointer}
+
+/* ══════════════════════════════
+   INVENTORY
+══════════════════════════════ */
+.filter-row{display:flex;gap:8px;padding:0 16px 12px;overflow-x:auto;scrollbar-width:none}
+.filter-row::-webkit-scrollbar{display:none}
+.chip{
+  flex-shrink:0;padding:6px 14px;background:var(--warm);border-radius:20px;border:none;
+  cursor:pointer;font-family:'Nunito',sans-serif;font-size:11px;font-weight:800;
+  color:var(--brown-m);transition:all .15s}
+.chip.on{background:var(--terra);color:#fff;box-shadow:0 3px 10px rgba(200,112,74,.4)}
+.item-list{padding:0 16px 8px;display:flex;flex-direction:column;gap:8px}
+.item-card{
+  background:#fff;border-radius:16px;padding:14px 16px;display:flex;align-items:center;
+  gap:12px;box-shadow:0 2px 10px var(--sh);cursor:pointer;transition:transform .12s}
+.item-card:hover{transform:translateX(3px)}
+.item-card.exp-soon{border-left:3px solid var(--mustard)}
+.item-card.expired{border-left:3px solid var(--terra);opacity:.85}
+.item-card.fresh{border-left:3px solid var(--sage)}
+.item-ico{width:44px;height:44px;border-radius:14px;background:var(--warm);
+  display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.item-inf{flex:1;min-width:0}
+.item-nm{font-size:14px;font-weight:800;color:var(--text);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item-mt{font-size:11px;color:var(--muted);font-weight:700;margin-top:2px}
+.badge{padding:4px 10px;border-radius:20px;font-size:10px;font-weight:800;flex-shrink:0}
+.b-red{background:#FFEBE8;color:var(--terra)}
+.b-yel{background:#FFF8E0;color:#A07800}
+.b-grn{background:var(--sage-xl);color:var(--sage)}
+
+/* ══════════════════════════════
+   RECIPES
+══════════════════════════════ */
+.recipe-hero{
+  margin:8px 16px 12px;
+  background:linear-gradient(135deg,var(--sage) 0%,#5A8060 100%);
+  border-radius:28px;padding:18px 20px;color:#fff;position:relative;overflow:hidden}
+.recipe-hero::before{content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at 80% 20%,rgba(255,255,255,.15),transparent 60%)}
+.rh-title{font-family:'Fredoka One',cursive;font-size:20px;margin-bottom:4px}
+.rh-sub{font-size:12px;opacity:.85;font-weight:700}
+.rh-btn{
+  margin-top:12px;background:rgba(255,255,255,.22);border:none;border-radius:12px;
+  color:#fff;font-family:'Nunito',sans-serif;font-weight:800;font-size:12px;
+  padding:8px 16px;cursor:pointer;transition:background .15s}
+.rh-btn:hover{background:rgba(255,255,255,.32)}
+.rh-badge{position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:40px}
+.recipe-card{
+  background:#fff;border-radius:20px;margin:0 16px 10px;
+  box-shadow:0 3px 12px var(--sh);overflow:hidden;cursor:pointer;
+  transition:transform .12s,box-shadow .12s}
+.recipe-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px var(--sh-l)}
+.rc-img{
+  height:90px;background:linear-gradient(135deg,var(--warm),var(--tan));
+  display:flex;align-items:center;justify-content:center;font-size:44px;position:relative}
+.rc-match{
+  position:absolute;bottom:8px;right:10px;
+  background:rgba(0,0,0,.55);backdrop-filter:blur(4px);
+  color:#fff;font-size:10px;font-weight:800;padding:3px 8px;border-radius:20px}
+.rc-body{padding:12px 14px}
+.rc-title{font-family:'Fredoka One',cursive;font-size:16px;color:var(--brown);margin-bottom:4px}
+.rc-meta{font-size:10px;font-weight:700;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap}
+.rc-tag{background:var(--warm);color:var(--brown-m);border-radius:20px;padding:2px 8px}
+.ai-load{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:40px 20px;gap:12px;color:var(--muted)}
+.spinner{width:40px;height:40px;border-radius:50%;border:3px solid var(--warm);
+  border-top-color:var(--sage);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ══════════════════════════════
+   SHOPPING
+══════════════════════════════ */
+.shop-hero{
+  margin:8px 16px 12px;
+  background:linear-gradient(135deg,var(--mustard) 0%,#B8882A 100%);
+  border-radius:28px;padding:18px 20px;color:#fff;position:relative;overflow:hidden}
+.shop-hero::before{content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at 80% 20%,rgba(255,255,255,.15),transparent 60%)}
+.sh-title{font-family:'Fredoka One',cursive;font-size:20px;margin-bottom:4px}
+.sh-sub{font-size:12px;opacity:.85;font-weight:700}
+.sh-badge{position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:36px}
+.shop-btn{
+  margin:0 16px 12px;width:calc(100% - 32px);
+  background:linear-gradient(135deg,var(--mustard),#C89028);color:#fff;border:none;
+  border-radius:16px;padding:14px;font-family:'Nunito',sans-serif;font-weight:800;
+  font-size:13px;cursor:pointer;box-shadow:0 4px 16px rgba(212,168,60,.45);transition:transform .12s}
+.shop-btn:hover{transform:scale(1.02)}
+.shop-item{
+  background:#fff;border-radius:14px;margin:0 16px 8px;padding:14px 16px;
+  display:flex;align-items:center;gap:12px;box-shadow:0 2px 10px var(--sh);
+  cursor:pointer;transition:opacity .2s}
+.shop-item.chk{opacity:.5}
+.shop-cb{
+  width:24px;height:24px;border-radius:8px;border:2.5px solid var(--tan);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;font-size:13px}
+.shop-item.chk .shop-cb{background:var(--sage);border-color:var(--sage)}
+.shop-nm{flex:1;font-size:13px;font-weight:800;color:var(--text)}
+.shop-qt{font-size:11px;font-weight:700;color:var(--muted)}
+.shop-cat{font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:1px}
+.shop-del{
+  width:32px;height:32px;border-radius:10px;background:#FFEBE8;border:none;
+  color:var(--terra);font-size:14px;cursor:pointer;display:flex;align-items:center;
+  justify-content:center;flex-shrink:0;transition:all .15s;opacity:0}
+.shop-item:hover .shop-del{opacity:1}
+.shop-del:hover{background:var(--terra);color:#fff;transform:scale(1.08)}
+.shop-section-hdr{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 20px 4px;font-size:10px;font-weight:800;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.8px}
+.clear-done-btn{
+  font-size:10px;font-weight:800;color:var(--terra);background:none;border:none;
+  cursor:pointer;font-family:'Nunito',sans-serif;padding:4px 8px;border-radius:8px;
+  transition:background .15s}
+.clear-done-btn:hover{background:#FFEBE8}
+
+/* ══════════════════════════════
+   PROFILE
+══════════════════════════════ */
+.prof-hero{
+  margin:8px 16px 12px;
+  background:linear-gradient(135deg,#7A5A3A 0%,#5A3A20 100%);
+  border-radius:28px;padding:20px;color:#fff;display:flex;align-items:center;gap:16px}
+.prof-av{
+  width:56px;height:56px;border-radius:20px;background:rgba(255,255,255,.2);
+  backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;
+  font-size:28px;flex-shrink:0}
+.prof-name{font-family:'Fredoka One',cursive;font-size:20px;margin-bottom:2px}
+.prof-sub{font-size:11px;opacity:.8;font-weight:700}
+.prof-edit{
+  margin-left:auto;background:rgba(255,255,255,.18);border:none;border-radius:12px;
+  color:#fff;font-family:'Nunito',sans-serif;font-weight:800;font-size:11px;
+  padding:7px 12px;cursor:pointer;flex-shrink:0}
+.waste-card{
+  background:linear-gradient(135deg,var(--sage-xl),#fff);border-radius:20px;
+  padding:16px;margin:0 16px 14px;box-shadow:0 3px 12px var(--sh)}
+.waste-title{font-family:'Fredoka One',cursive;font-size:16px;color:var(--brown);margin-bottom:12px}
+.waste-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.ws{text-align:center}
+.ws-n{font-family:'Fredoka One',cursive;font-size:20px;color:var(--sage)}
+.ws-l{font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.api-box{
+  background:linear-gradient(135deg,var(--sage-xl),#fff);border-radius:20px;
+  padding:16px;margin:0 16px 12px;box-shadow:0 3px 12px var(--sh)}
+.api-title{font-family:'Fredoka One',cursive;font-size:15px;color:var(--brown);margin-bottom:6px}
+.api-desc{font-size:11px;color:var(--muted);font-weight:700;margin-bottom:10px;line-height:1.5}
+.api-inp{
+  width:100%;border:2px solid var(--warm);border-radius:12px;padding:10px 14px;
+  font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;color:var(--text);
+  background:#fff;outline:none;transition:border-color .15s;margin-bottom:8px}
+.api-inp:focus{border-color:var(--sage)}
+.sett-sec{padding:0 16px 8px}
+.sett-sec-title{font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;
+  letter-spacing:1px;margin-bottom:8px;padding-left:4px}
+.sett-row{
+  background:#fff;border-radius:14px;padding:14px 16px;display:flex;align-items:center;
+  gap:12px;box-shadow:0 2px 8px var(--sh);margin-bottom:8px;cursor:pointer;transition:transform .12s}
+.sett-row:hover{transform:translateX(3px)}
+.sett-ico{font-size:20px;width:36px;text-align:center}
+.sett-lbl{flex:1;font-size:13px;font-weight:800;color:var(--text)}
+.sett-val{font-size:11px;font-weight:700;color:var(--muted)}
+.sett-arr{font-size:14px;color:var(--tan)}
+.toggle{width:44px;height:26px;border-radius:13px;background:var(--tan);
+  position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
+.toggle.on{background:var(--sage)}
+.toggle::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;
+  border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.toggle.on::after{left:21px}
+
+/* ══════════════════════════════
+   MODALS
+══════════════════════════════ */
+.modal-ov{
+  position:absolute;inset:0;background:rgba(0,0,0,0);display:flex;align-items:flex-end;
+  pointer-events:none;z-index:100;transition:background .25s}
+.modal-ov.open{background:rgba(40,20,5,.5);pointer-events:all}
+.modal-sh{
+  width:100%;background:var(--cream);border-radius:28px 28px 0 0;padding:0 0 24px;
+  transform:translateY(100%);transition:transform .32s cubic-bezier(.34,1.12,.64,1);
+  max-height:86%;overflow-y:auto;scrollbar-width:none}
+.modal-sh::-webkit-scrollbar{display:none}
+.modal-ov.open .modal-sh{transform:translateY(0)}
+.modal-drag{width:40px;height:4px;border-radius:2px;background:var(--tan);margin:12px auto 4px}
+.modal-hdr{padding:12px 20px 16px;display:flex;align-items:center;gap:14px}
+.modal-em{width:56px;height:56px;border-radius:18px;background:var(--warm);
+  display:flex;align-items:center;justify-content:center;font-size:28px}
+.modal-nm{font-family:'Fredoka One',cursive;font-size:20px;color:var(--brown)}
+.modal-sb{font-size:11px;color:var(--muted);font-weight:700;margin-top:2px}
+.modal-div{height:1px;background:var(--warm);margin:0 20px}
+.modal-sec{padding:14px 20px}
+.modal-lbl{font-size:10px;font-weight:800;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px}
+.modal-acts{padding:8px 20px 0;display:flex;gap:10px}
+.modal-btn{
+  flex:1;padding:14px;border-radius:16px;border:none;cursor:pointer;
+  font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;transition:all .15s}
+.modal-btn:hover{transform:scale(1.02)}
+.modal-btn.p{background:linear-gradient(135deg,var(--terra),var(--terra-l));
+  color:#fff;box-shadow:0 6px 20px rgba(200,112,74,.4)}
+.modal-btn.g{background:var(--warm);color:var(--muted)}
+.modal-btn.d{background:#FFEBE8;color:var(--terra)}
+.qty-row{display:flex;align-items:center;gap:16px}
+.qty-btn{
+  width:38px;height:38px;border-radius:13px;border:none;cursor:pointer;
+  background:var(--warm);font-size:20px;color:var(--brown);
+  display:flex;align-items:center;justify-content:center;transition:all .12s}
+.qty-btn:hover{background:var(--tan);transform:scale(1.08)}
+.qty-val{font-family:'Fredoka One',cursive;font-size:28px;color:var(--brown);min-width:40px;text-align:center}
+.qty-u{font-size:12px;color:var(--muted);font-weight:700}
+.exp-row{display:flex;align-items:center;gap:12px}
+.exp-ico{width:42px;height:42px;border-radius:14px;background:var(--warm);
+  display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.exp-date{font-size:14px;font-weight:800;color:var(--text)}
+.exp-days{font-size:11px;font-weight:700;margin-top:2px}
+.d-ok{color:var(--sage)}.d-warn{color:var(--mustard)}.d-bad{color:var(--terra)}
+.date-inp{
+  border:2px solid var(--warm);border-radius:12px;padding:8px 12px;
+  font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;color:var(--text);
+  background:#fff;width:100%;margin-top:8px;outline:none;transition:border-color .15s}
+.date-inp:focus{border-color:var(--terra)}
+.cond-row{display:flex;gap:8px}
+.cond-p{
+  flex:1;min-width:80px;padding:8px 6px;border-radius:12px;background:var(--warm);
+  text-align:center;font-size:11px;font-weight:800;color:var(--brown-m);
+  cursor:pointer;border:2px solid transparent;transition:all .15s}
+.cond-p.on.f{background:#E8F5EC;border-color:var(--sage);color:var(--sage)}
+.cond-p.on.o{background:#FFF8E0;border-color:var(--mustard);color:#A07800}
+.cond-p.on.b{background:#FFEBE8;border-color:var(--terra);color:var(--terra)}
+.loc-row{display:flex;gap:8px;flex-wrap:wrap}
+.loc-p{
+  padding:7px 12px;border-radius:12px;background:var(--warm);font-size:11px;
+  font-weight:800;color:var(--brown-m);cursor:pointer;border:2px solid transparent;transition:all .15s}
+.loc-p.on{background:var(--terra-xl);border-color:var(--terra);color:var(--terra)}
+.add-field{margin-bottom:12px}
+.add-field label{display:block;font-size:10px;font-weight:800;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px}
+.add-inp{
+  width:100%;border:2px solid var(--warm);border-radius:12px;padding:10px 14px;
+  font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;color:var(--text);
+  background:#fff;outline:none;transition:border-color .15s}
+.add-inp:focus{border-color:var(--terra)}
+.em-pick{display:flex;gap:8px;flex-wrap:wrap}
+.em-opt{
+  width:38px;height:38px;border-radius:12px;border:2px solid var(--warm);
+  background:#fff;font-size:20px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:all .12s}
+.em-opt.on{border-color:var(--terra);background:var(--terra-xl)}
+.rd-em{font-size:52px;text-align:center;padding:16px 0 8px}
+.rd-ti{font-family:'Fredoka One',cursive;font-size:22px;color:var(--brown);
+  text-align:center;padding:0 20px 4px}
+.rd-meta{display:flex;justify-content:center;gap:10px;padding:0 20px 14px;flex-wrap:wrap}
+.rd-tag{background:var(--warm);color:var(--brown-m);border-radius:20px;padding:4px 10px;
+  font-size:10px;font-weight:800}
+.ri-item{display:flex;align-items:center;gap:8px;padding:8px 0;
+  border-bottom:1px solid var(--warm);font-size:13px;font-weight:700;color:var(--text)}
+.ri-dot{width:8px;height:8px;border-radius:50%;background:var(--terra);flex-shrink:0}
+.ri-have{color:var(--sage);font-size:10px;font-weight:800;background:var(--sage-xl);
+  border-radius:20px;padding:2px 6px;margin-left:auto}
+.ri-need{color:var(--muted);font-size:10px;font-weight:800;background:var(--warm);
+  border-radius:20px;padding:2px 6px;margin-left:auto}
+.rs-step{display:flex;gap:12px;margin-bottom:12px}
+.rs-num{width:24px;height:24px;border-radius:8px;background:var(--terra);color:#fff;
+  font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;margin-top:1px}
+.rs-txt{font-size:12px;font-weight:700;color:var(--text);line-height:1.5}
+.ep-field{padding:0 20px;margin-bottom:12px}
+.ep-lbl{font-size:10px;font-weight:800;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px}
+.ep-inp{
+  width:100%;border:2px solid var(--warm);border-radius:12px;padding:10px 14px;
+  font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;color:var(--text);
+  background:#fff;outline:none;transition:border-color .15s}
+.ep-inp:focus{border-color:var(--terra)}
+
+/* ── TOAST ── */
+.toast{
+  position:absolute;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--brown);color:#fff;padding:10px 20px;border-radius:20px;
+  font-size:12px;font-weight:800;white-space:nowrap;opacity:0;
+  transition:all .25s;z-index:200;pointer-events:none;
+  box-shadow:0 4px 16px rgba(0,0,0,.3)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@keyframes up{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.au{animation:up .28s ease forwards}
+</style>
+</head>
+<body>
+<div class="phone" id="app">
+  <div class="status-bar">
+    <span id="clk">9:41</span><span>●●● 📶 🔋</span>
+  </div>
+
+  <!-- ═══ AUTH ═══ -->
+  <div class="screen active" id="sc-auth">
+    <div class="auth-wrap">
+      <div class="auth-logo">
+        <div class="auth-logo-icon">🥗</div>
+        <div class="auth-logo-name">Smart Pantry</div>
+        <div class="auth-logo-sub">Reduce waste · Save money · Eat better</div>
+      </div>
+      <div class="auth-tabs">
+        <button class="auth-tab on" id="tab-in" onclick="swTab('in')">Sign In</button>
+        <button class="auth-tab" id="tab-up" onclick="swTab('up')">Create Account</button>
+      </div>
+      <!-- Login -->
+      <div id="panel-in">
+        <div class="auth-form">
+          <div class="field">
+            <div class="field-label">Email</div>
+            <input class="field-input" id="li-em" type="email" placeholder="you@example.com" autocomplete="email">
+            <div class="field-err" id="li-em-e"></div>
+          </div>
+          <div class="field">
+            <div class="field-label">Password</div>
+            <input class="field-input" id="li-pw" type="password" placeholder="Your password" autocomplete="current-password">
+            <div class="field-err" id="li-pw-e"></div>
+          </div>
+          <div class="global-err" id="li-ge"></div>
+          <button class="btn-primary" id="li-btn" onclick="doLogin()">Sign In</button>
+          <div class="auth-hint">No account? <span onclick="swTab('up')">Sign up →</span></div>
+        </div>
+      </div>
+      <!-- Signup -->
+      <div id="panel-up" style="display:none">
+        <div class="auth-form">
+          <div class="field">
+            <div class="field-label">Full Name</div>
+            <input class="field-input" id="su-nm" type="text" placeholder="Jane Smith" autocomplete="name">
+            <div class="field-err" id="su-nm-e"></div>
+          </div>
+          <div class="field">
+            <div class="field-label">Email</div>
+            <input class="field-input" id="su-em" type="email" placeholder="you@example.com" autocomplete="email">
+            <div class="field-err" id="su-em-e"></div>
+          </div>
+          <div class="field">
+            <div class="field-label">Password</div>
+            <input class="field-input" id="su-pw" type="password" placeholder="At least 6 characters" autocomplete="new-password">
+            <div class="field-err" id="su-pw-e"></div>
+          </div>
+          <div class="field">
+            <div class="field-label">Confirm Password</div>
+            <input class="field-input" id="su-p2" type="password" placeholder="Repeat password" autocomplete="new-password">
+            <div class="field-err" id="su-p2-e"></div>
+          </div>
+          <div class="global-err" id="su-ge"></div>
+          <button class="btn-primary" id="su-btn" onclick="doSignup()">Create Account</button>
+          <div class="auth-hint">Have an account? <span onclick="swTab('in')">Sign in →</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SETUP ═══ -->
+  <div class="screen" id="sc-setup">
+    <div class="auth-wrap">
+      <div class="auth-logo" style="padding-bottom:8px">
+        <div class="auth-logo-icon">✨</div>
+        <div class="auth-logo-name">Set Up Profile</div>
+        <div class="auth-logo-sub">Just a few quick questions</div>
+      </div>
+      <div class="setup-progress">
+        <div class="prog-bar"><div class="prog-fill" id="pf" style="width:25%"></div></div>
+        <div class="prog-label" id="pl">Step 1 of 4</div>
+      </div>
+      <!-- Step 1 -->
+      <div class="setup-step on" id="ss1">
+        <div class="setup-h">Pick your avatar</div>
+        <div class="setup-sub">Choose an icon for your household.</div>
+        <div class="avatar-grid" id="av-grid"></div>
+        <div class="auth-form" style="gap:10px;padding-top:0">
+          <div class="field">
+            <div class="field-label">Household Name</div>
+            <input class="field-input" id="ss-hh" type="text" placeholder="e.g. The Smith Family">
+            <div class="field-err" id="ss-hh-e"></div>
+          </div>
+          <button class="btn-primary" onclick="ssNext(1)">Continue →</button>
+        </div>
+      </div>
+      <!-- Step 2 -->
+      <div class="setup-step" id="ss2">
+        <div class="setup-h">Dietary preference</div>
+        <div class="setup-sub">We'll use this to suggest the best recipes.</div>
+        <div class="diet-grid" id="diet-grid"></div>
+        <div class="auth-form" style="gap:10px;padding-top:4px">
+          <div class="field-err" id="ss-di-e" style="text-align:center"></div>
+          <button class="btn-primary" onclick="ssNext(2)">Continue →</button>
+          <button class="btn-primary btn-ghost" onclick="ssBack(2)">← Back</button>
+        </div>
+      </div>
+      <!-- Step 3 -->
+      <div class="setup-step" id="ss3">
+        <div class="setup-h">Cooking skill</div>
+        <div class="setup-sub">We'll match recipes to your level.</div>
+        <div class="skill-list" id="skill-list"></div>
+        <div class="auth-form" style="gap:10px;padding-top:4px">
+          <div class="field-err" id="ss-sk-e" style="text-align:center"></div>
+          <button class="btn-primary" onclick="ssNext(3)">Continue →</button>
+          <button class="btn-primary btn-ghost" onclick="ssBack(3)">← Back</button>
+        </div>
+      </div>
+      <!-- Step 4 -->
+      <div class="setup-step" id="ss4">
+        <div class="setup-h">Allergies & household size</div>
+        <div class="setup-sub">Select any restrictions that apply.</div>
+        <div class="allergy-wrap" id="al-wrap"></div>
+        <div class="hs-section">
+          <div class="hs-label">How many people live here?</div>
+          <div class="hs-row">
+            <button class="hs-btn" onclick="chHS(-1)">−</button>
+            <div class="hs-num" id="hs-num">2</div>
+            <button class="hs-btn" onclick="chHS(1)">+</button>
+          </div>
+          <div style="font-size:11px;font-weight:800;color:var(--muted);margin-top:6px" id="hs-lbl">2 people</div>
+        </div>
+        <div class="auth-form" style="gap:10px;padding-top:4px">
+          <button class="btn-primary" onclick="finishSetup()">🎉 Let's Go!</button>
+          <button class="btn-primary btn-ghost" onclick="ssBack(4)">← Back</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ HOME ═══ -->
+  <div class="screen" id="sc-home">
+    <div class="topnav">
+      <div>
+        <div style="font-family:'Fredoka One',cursive;font-size:22px;color:var(--brown)">🥗 Smart Pantry</div>
+        <div style="font-size:10px;font-weight:800;color:var(--muted)" id="h-date"></div>
+      </div>
+      <button class="icon-btn" onclick="go('profile')">👤</button>
+    </div>
+    <div class="scroll">
+      <div class="notif" id="notif-bar" style="display:none">
+        <span style="font-size:18px">⚠️</span>
+        <div class="notif-txt" id="notif-txt"></div>
+        <span class="notif-x" onclick="this.parentElement.style.display='none'">✕</span>
+      </div>
+      <div class="hero">
+        <div class="hero-gr" id="h-gr">Good morning!</div>
+        <div class="hero-ti" id="h-ti">What's for dinner?</div>
+        <div class="hero-st" id="h-st">Loading…</div>
+        <div class="hero-bd" id="h-bd">🍳</div>
+      </div>
+      <div class="sec-lbl">📊 Overview</div>
+      <div class="stats-row">
+        <div class="stat-card"><div class="stat-n" id="s-tot">0</div><div class="stat-l">Total</div></div>
+        <div class="stat-card"><div class="stat-n" id="s-exp" style="color:var(--mustard)">0</div><div class="stat-l">Expiring</div></div>
+        <div class="stat-card"><div class="stat-n" id="s-bad" style="color:var(--terra)">0</div><div class="stat-l">Expired</div></div>
+      </div>
+      <div class="sec-lbl" id="al-lbl" style="display:none">⚡ Use These Soon</div>
+      <div class="alert-row" id="al-row"></div>
+      <div class="sec-lbl">🏠 Storage</div>
+      <div class="loc-grid" id="loc-grid"></div>
+      <div style="height:16px"></div>
+    </div>
+    <div class="bottom-nav">
+      <div class="nav-tab on" onclick="go('home')"><div class="nav-ti">🏠</div><div class="nav-tl" style="color:var(--terra)">Home</div></div>
+      <div class="nav-tab" onclick="go('inventory')"><div class="nav-ti">📦</div><div class="nav-tl">Pantry</div></div>
+      <button class="nav-add" onclick="openAdd()">+</button>
+      <div class="nav-tab" onclick="go('recipes')"><div class="nav-ti">📖</div><div class="nav-tl">Recipes</div></div>
+      <div class="nav-tab" onclick="go('shopping')"><div class="nav-ti">🛒</div><div class="nav-tl">List</div></div>
+    </div>
+  </div>
+
+  <!-- ═══ INVENTORY ═══ -->
+  <div class="screen" id="sc-inventory">
+    <div class="topnav">
+      <div style="font-family:'Fredoka One',cursive;font-size:22px;color:var(--brown)">📦 My Pantry</div>
+      <button class="icon-btn" onclick="go('profile')">⚙️</button>
+    </div>
+    <div class="filter-row">
+      <button class="chip on" onclick="filt('All',this)">All</button>
+      <button class="chip" onclick="filt('Fridge',this)">🧊 Fridge</button>
+      <button class="chip" onclick="filt('Freezer',this)">❄️ Freezer</button>
+      <button class="chip" onclick="filt('Pantry',this)">🗄 Pantry</button>
+      <button class="chip" onclick="filt('Basket',this)">🧺 Basket</button>
+      <button class="chip" onclick="filt('Seasonings',this)">🧂 Spices</button>
+    </div>
+    <div class="scroll">
+      <div class="item-list" id="inv-list"></div>
+      <div style="height:16px"></div>
+    </div>
+    <div class="bottom-nav">
+      <div class="nav-tab" onclick="go('home')"><div class="nav-ti">🏠</div><div class="nav-tl">Home</div></div>
+      <div class="nav-tab on" onclick="go('inventory')"><div class="nav-ti">📦</div><div class="nav-tl" style="color:var(--terra)">Pantry</div></div>
+      <button class="nav-add" onclick="openAdd()">+</button>
+      <div class="nav-tab" onclick="go('recipes')"><div class="nav-ti">📖</div><div class="nav-tl">Recipes</div></div>
+      <div class="nav-tab" onclick="go('shopping')"><div class="nav-ti">🛒</div><div class="nav-tl">List</div></div>
+    </div>
+  </div>
+
+  <!-- ═══ RECIPES ═══ -->
+  <div class="screen" id="sc-recipes">
+    <div class="topnav">
+      <div style="font-family:'Fredoka One',cursive;font-size:22px;color:var(--brown)">📖 Recipes</div>
+      <button class="icon-btn" onclick="go('profile')">⚙️</button>
+    </div>
+    <div class="scroll">
+      <div class="recipe-hero">
+        <div class="rh-title">AI Recipe Engine</div>
+        <div class="rh-sub">Powered by Claude · Uses your pantry</div>
+        <button class="rh-btn" onclick="getRecipes()">✨ Get AI Recipes</button>
+        <div class="rh-badge">🤖</div>
+      </div>
+      <div id="rc-box">
+        <div class="ai-load">
+          <div style="font-size:36px">🍽️</div>
+          <div style="font-size:13px;font-weight:800;color:var(--muted)">Tap "Get AI Recipes"<br>to generate suggestions</div>
+          <div style="font-size:11px;color:var(--tan);font-weight:700;margin-top:4px">Add your Anthropic key in Profile first</div>
+        </div>
+      </div>
+    </div>
+    <div class="bottom-nav">
+      <div class="nav-tab" onclick="go('home')"><div class="nav-ti">🏠</div><div class="nav-tl">Home</div></div>
+      <div class="nav-tab" onclick="go('inventory')"><div class="nav-ti">📦</div><div class="nav-tl">Pantry</div></div>
+      <button class="nav-add" onclick="openAdd()">+</button>
+      <div class="nav-tab on" onclick="go('recipes')"><div class="nav-ti">📖</div><div class="nav-tl" style="color:var(--terra)">Recipes</div></div>
+      <div class="nav-tab" onclick="go('shopping')"><div class="nav-ti">🛒</div><div class="nav-tl">List</div></div>
+    </div>
+  </div>
+
+  <!-- ═══ SHOPPING ═══ -->
+  <div class="screen" id="sc-shopping">
+    <div class="topnav">
+      <div style="font-family:'Fredoka One',cursive;font-size:22px;color:var(--brown)">🛒 Shopping</div>
+      <button class="icon-btn" onclick="go('profile')">⚙️</button>
+    </div>
+    <div class="scroll">
+      <div class="shop-hero">
+        <div class="sh-title">Smart List</div>
+        <div class="sh-sub" id="sh-meta">0 items to grab</div>
+        <div class="sh-badge">🛍️</div>
+      </div>
+      <div style="display:flex;gap:10px;padding:0 16px 12px">
+        <button class="shop-btn" style="margin:0;flex:1;padding:13px" onclick="autoList()">⚡ Auto-Generate</button>
+        <button class="shop-btn" style="margin:0;width:52px;flex-shrink:0;padding:13px;background:linear-gradient(135deg,var(--terra),var(--terra-l));box-shadow:0 4px 16px rgba(200,112,74,.4)" onclick="openShopAdd()">+</button>
+      </div>
+      <div id="sh-list"></div>
+      <div style="height:16px"></div>
+    </div>
+    <div class="bottom-nav">
+      <div class="nav-tab" onclick="go('home')"><div class="nav-ti">🏠</div><div class="nav-tl">Home</div></div>
+      <div class="nav-tab" onclick="go('inventory')"><div class="nav-ti">📦</div><div class="nav-tl">Pantry</div></div>
+      <button class="nav-add" onclick="openAdd()">+</button>
+      <div class="nav-tab" onclick="go('recipes')"><div class="nav-ti">📖</div><div class="nav-tl">Recipes</div></div>
+      <div class="nav-tab on" onclick="go('shopping')"><div class="nav-ti">🛒</div><div class="nav-tl" style="color:var(--terra)">List</div></div>
+    </div>
+  </div>
+
+  <!-- ═══ PROFILE ═══ -->
+  <div class="screen" id="sc-profile">
+    <div class="topnav">
+      <button class="icon-btn" onclick="go('home')">←</button>
+      <span style="font-family:'Fredoka One',cursive;font-size:20px;color:var(--brown)">Profile</span>
+      <div style="width:38px"></div>
+    </div>
+    <div class="scroll">
+      <div class="prof-hero">
+        <div class="prof-av" id="p-av">👤</div>
+        <div>
+          <div class="prof-name" id="p-nm">Household</div>
+          <div class="prof-sub" id="p-em">email</div>
+        </div>
+        <button class="prof-edit" onclick="openEP()">Edit</button>
+      </div>
+      <div class="waste-card">
+        <div class="waste-title">🌱 Sustainability Score</div>
+        <div class="waste-stats">
+          <div class="ws"><div class="ws-n" id="w-sv">0</div><div class="ws-l">Saved</div></div>
+          <div class="ws"><div class="ws-n" id="w-lb">0.0</div><div class="ws-l">Lbs</div></div>
+          <div class="ws"><div class="ws-n" id="w-pt">0</div><div class="ws-l">Points</div></div>
+        </div>
+      </div>
+      <div class="api-box">
+        <div class="api-title">🤖 Claude API Key</div>
+        <div class="api-desc">Enter your Anthropic key for AI recipe recommendations. Stored locally only, never shared.</div>
+        <input class="api-inp" type="password" id="api-k" placeholder="sk-ant-api03-…">
+        <button class="btn-primary btn-sage" style="padding:11px;font-size:13px;border-radius:12px;margin-top:0" onclick="saveKey()">Save API Key</button>
+      </div>
+      <div class="sett-sec">
+        <div class="sett-sec-title">Preferences</div>
+        <div class="sett-row" onclick="cycP('dietary',['Omnivore','Vegetarian','Vegan','Keto','Gluten-Free','Halal'],'p-di')">
+          <div class="sett-ico">🥗</div><div class="sett-lbl">Dietary Mode</div>
+          <div class="sett-val" id="p-di">—</div><div class="sett-arr">›</div>
+        </div>
+        <div class="sett-row" onclick="cycP('skill',['Beginner','Intermediate','Advanced'],'p-sk')">
+          <div class="sett-ico">👨‍🍳</div><div class="sett-lbl">Cooking Skill</div>
+          <div class="sett-val" id="p-sk">—</div><div class="sett-arr">›</div>
+        </div>
+        <div class="sett-row">
+          <div class="sett-ico">👨‍👩‍👧</div><div class="sett-lbl">Household Size</div>
+          <div class="sett-val" id="p-hs">—</div>
+        </div>
+        <div class="sett-row">
+          <div class="sett-ico">🔔</div><div class="sett-lbl">Expiry Alerts</div>
+          <div class="toggle on" id="notif-tog" onclick="this.classList.toggle('on')"></div>
+        </div>
+      </div>
+      <div class="sett-sec">
+        <div class="sett-sec-title">Account</div>
+        <div class="sett-row" onclick="exportData()">
+          <div class="sett-ico">📤</div><div class="sett-lbl">Export My Data</div><div class="sett-arr">›</div>
+        </div>
+        <div class="sett-row" onclick="signOut()">
+          <div class="sett-ico">🚪</div><div class="sett-lbl">Sign Out</div>
+          <div class="sett-val" style="color:var(--terra)">Log out</div><div class="sett-arr">›</div>
+        </div>
+        <div class="sett-row" onclick="delAccount()">
+          <div class="sett-ico">🗑️</div><div class="sett-lbl">Delete Account</div>
+          <div class="sett-val" style="color:var(--terra)">Danger</div><div class="sett-arr">›</div>
+        </div>
+      </div>
+      <div style="height:24px"></div>
+    </div>
+  </div>
+
+  <!-- ═══ MODAL: Item edit ═══ -->
+  <div class="modal-ov" id="m-item" onclick="closeMBG(event,'m-item')">
+    <div class="modal-sh">
+      <div class="modal-drag"></div>
+      <div class="modal-hdr">
+        <div class="modal-em" id="mi-em">🥚</div>
+        <div><div class="modal-nm" id="mi-nm">Item</div><div class="modal-sb" id="mi-sb">Location</div></div>
+      </div>
+      <div class="modal-div"></div>
+      <div class="modal-sec">
+        <div class="modal-lbl">Quantity</div>
+        <div class="qty-row">
+          <button class="qty-btn" onclick="chQ(-1)">−</button>
+          <div class="qty-val" id="mi-q">1</div>
+          <div class="qty-u" id="mi-u">units</div>
+          <button class="qty-btn" onclick="chQ(1)">+</button>
+        </div>
+      </div>
+      <div class="modal-div"></div>
+      <div class="modal-sec">
+        <div class="modal-lbl">Expiry Date</div>
+        <div class="exp-row">
+          <div class="exp-ico">📅</div>
+          <div>
+            <div class="exp-date" id="mi-ed">—</div>
+            <div class="exp-days d-ok" id="mi-dd">—</div>
+          </div>
+        </div>
+        <input type="date" class="date-inp" id="mi-di" onchange="onExpCh(this.value)">
+      </div>
+      <div class="modal-div"></div>
+      <div class="modal-sec">
+        <div class="modal-lbl">Condition</div>
+        <div class="cond-row">
+          <div class="cond-p on f" onclick="setCond(this,'fresh')">✅ Fresh</div>
+          <div class="cond-p" onclick="setCond(this,'ok')">🟡 Getting old</div>
+          <div class="cond-p" onclick="setCond(this,'bad')">🔴 Use now</div>
+        </div>
+      </div>
+      <div class="modal-div"></div>
+      <div class="modal-sec">
+        <div class="modal-lbl">Location</div>
+        <div class="loc-row" id="mi-locs"></div>
+      </div>
+      <div class="modal-acts">
+        <button class="modal-btn d" onclick="doDelItem()">🗑 Remove</button>
+        <button class="modal-btn p" onclick="doSaveItem()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ MODAL: Add item ═══ -->
+  <div class="modal-ov" id="m-add" onclick="closeMBG(event,'m-add')">
+    <div class="modal-sh">
+      <div class="modal-drag"></div>
+      <div style="padding:12px 20px 8px;font-family:'Fredoka One',cursive;font-size:20px;color:var(--brown)">Add Item</div>
+      <div style="padding:0 20px 12px;display:flex;flex-direction:column;gap:0">
+        <div class="add-field"><label>Emoji</label><div class="em-pick" id="em-pick"></div></div>
+        <div class="add-field"><label>Name</label><input class="add-inp" id="a-nm" type="text" placeholder="e.g. Eggs, Milk…"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="add-field"><label>Quantity</label><input class="add-inp" id="a-qt" type="number" min="0" value="1"></div>
+          <div class="add-field"><label>Unit</label>
+            <select class="add-inp" id="a-un">
+              <option>units</option><option>lbs</option><option>oz</option><option>cups</option>
+              <option>L</option><option>mL</option><option>g</option><option>kg</option><option>bags</option>
+            </select>
+          </div>
+        </div>
+        <div class="add-field"><label>Expiry Date</label><input class="add-inp" id="a-ex" type="date"></div>
+        <div class="add-field"><label>Category</label>
+          <select class="add-inp" id="a-ca">
+            <option>Dairy</option><option>Produce</option><option>Meat</option><option>Grains</option>
+            <option>Beverages</option><option>Condiments</option><option>Frozen</option><option>Snacks</option><option>Other</option>
+          </select>
+        </div>
+        <div class="add-field"><label>Location</label>
+          <select class="add-inp" id="a-lo">
+            <option>Fridge</option><option>Freezer</option><option>Pantry</option><option>Basket</option><option>Seasonings</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-acts">
+        <button class="modal-btn g" onclick="closeM('m-add')">Cancel</button>
+        <button class="modal-btn p" onclick="doAdd()">Add to Pantry</button>
+      </div>
+      <div style="height:8px"></div>
+    </div>
+  </div>
+
+  <!-- ═══ MODAL: Recipe detail ═══ -->
+  <div class="modal-ov" id="m-recipe" onclick="closeMBG(event,'m-recipe')">
+    <div class="modal-sh">
+      <div class="modal-drag"></div>
+      <div class="rd-em" id="rd-em">🍳</div>
+      <div class="rd-ti" id="rd-ti">Recipe</div>
+      <div class="rd-meta" id="rd-meta"></div>
+      <div class="modal-div"></div>
+      <div class="modal-sec">
+        <div class="modal-lbl">Ingredients</div>
+        <div id="rd-ingr"></div>
+      </div>
+      <div class="modal-div"></div>
+      <div class="modal-sec">
+        <div class="modal-lbl">Instructions</div>
+        <div id="rd-steps"></div>
+      </div>
+      <div class="modal-acts">
+        <button class="modal-btn g" onclick="closeM('m-recipe')">Close</button>
+        <button class="modal-btn p" onclick="addMissing()">🛒 Add Missing Items</button>
+      </div>
+      <div style="height:8px"></div>
+    </div>
+  </div>
+
+  <!-- ═══ MODAL: Edit profile ═══ -->
+  <div class="modal-ov" id="m-ep" onclick="closeMBG(event,'m-ep')">
+    <div class="modal-sh">
+      <div class="modal-drag"></div>
+      <div style="padding:12px 20px 8px;font-family:'Fredoka One',cursive;font-size:20px;color:var(--brown)">Edit Profile</div>
+      <div class="modal-div"></div>
+      <div class="modal-sec">
+        <div class="modal-lbl">Avatar</div>
+        <div class="avatar-grid" id="ep-av-grid" style="padding:0;justify-content:flex-start"></div>
+      </div>
+      <div class="modal-div"></div>
+      <div class="ep-field" style="padding-top:14px">
+        <div class="ep-lbl">Full Name</div>
+        <input class="ep-inp" id="ep-nm" type="text">
+      </div>
+      <div class="ep-field">
+        <div class="ep-lbl">Household Name</div>
+        <input class="ep-inp" id="ep-hh" type="text">
+      </div>
+      <div class="modal-acts">
+        <button class="modal-btn g" onclick="closeM('m-ep')">Cancel</button>
+        <button class="modal-btn p" onclick="saveEP()">Save</button>
+      </div>
+      <div style="height:8px"></div>
+    </div>
+  </div>
+
+  <!-- ═══ MODAL: Add to shopping list ═══ -->
+  <div class="modal-ov" id="m-shop-add" onclick="closeMBG(event,'m-shop-add')">
+    <div class="modal-sh">
+      <div class="modal-drag"></div>
+      <div style="padding:12px 20px 4px;font-family:'Fredoka One',cursive;font-size:20px;color:var(--brown)">Add to Shopping List</div>
+      <div style="padding:0 20px 14px;display:flex;flex-direction:column;gap:0">
+        <div class="add-field"><label>Emoji</label><div class="em-pick" id="sa-em-pick"></div></div>
+        <div class="add-field"><label>Item Name</label><input class="add-inp" id="sa-nm" type="text" placeholder="e.g. Bread, Apples, Juice…"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="add-field">
+            <label>Quantity</label>
+            <input class="add-inp" id="sa-qt" type="number" min="0.5" step="0.5" value="1">
+          </div>
+          <div class="add-field">
+            <label>Unit</label>
+            <select class="add-inp" id="sa-un">
+              <option>units</option><option>lbs</option><option>oz</option><option>cups</option>
+              <option>L</option><option>mL</option><option>g</option><option>kg</option>
+              <option>bags</option><option>boxes</option><option>cans</option><option>bottles</option>
+            </select>
+          </div>
+        </div>
+        <div class="add-field">
+          <label>Category</label>
+          <select class="add-inp" id="sa-ca">
+            <option>Produce</option><option>Dairy</option><option>Meat</option><option>Grains</option>
+            <option>Beverages</option><option>Snacks</option><option>Frozen</option>
+            <option>Condiments</option><option>Household</option><option>Other</option>
+          </select>
+        </div>
+        <div class="add-field">
+          <label>Note <span style="font-weight:600;text-transform:none;letter-spacing:0;color:var(--tan)">(optional)</span></label>
+          <input class="add-inp" id="sa-nt" type="text" placeholder="e.g. Organic, Name brand…">
+        </div>
+      </div>
+      <div class="modal-acts">
+        <button class="modal-btn g" onclick="closeM('m-shop-add')">Cancel</button>
+        <button class="modal-btn p" onclick="doShopAdd()">Add to List</button>
+      </div>
+      <div style="height:8px"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div><!-- /phone -->
+
+<script>
+'use strict';
+/* ═══════════════════════════════════════
+   DATA LAYER
+═══════════════════════════════════════ */
+const DB={
+  uid:null,
+  k:(n)=>`sp_${DB.uid}_${n}`,
+  g:(k)=>{try{return JSON.parse(localStorage.getItem(k))}catch{return null}},
+  s:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}},
+  users(){return DB.g('sp_users')||{}},
+  saveUsers(u){DB.s('sp_users',u)},
+  session(){return DB.g('sp_session')},
+  setSession(uid){DB.s('sp_session',{uid,at:Date.now()})},
+  clearSession(){localStorage.removeItem('sp_session')},
+  inv(){return DB.g(DB.k('inv'))||[]},
+  saveInv(v){DB.s(DB.k('inv'),v)},
+  getItem(id){return DB.inv().find(i=>i.id===id)||null},
+  addItem(d){const l=DB.inv();d.id='i'+Date.now()+Math.random().toString(36).slice(2,5);d.at=new Date().toISOString();l.push(d);DB.saveInv(l);return d},
+  updItem(id,c){DB.saveInv(DB.inv().map(i=>i.id===id?{...i,...c}:i))},
+  delItem(id){DB.saveInv(DB.inv().filter(i=>i.id!==id))},
+  shop(){return DB.g(DB.k('shop'))||[]},
+  saveShop(v){DB.s(DB.k('shop'),v)},
+  addShop(it){const l=DB.shop();it.id='sh'+Date.now();it.chk=false;l.push(it);DB.saveShop(l);return it},
+  togShop(id){DB.saveShop(DB.shop().map(i=>i.id===id?{...i,chk:!i.chk}:i))},
+  profile(){return DB.g(DB.k('profile'))||{}},
+  saveProfile(v){DB.s(DB.k('profile'),v)},
+  settings(){return DB.g(DB.k('settings'))||{dietary:'Omnivore',skill:'Intermediate',householdSize:2,apiKey:'',notifications:true,allergies:[]}},
+  saveSettings(v){DB.s(DB.k('settings'),v)},
+  waste(){return DB.g(DB.k('waste'))||[]},
+  logWaste(item,reason){const w=DB.waste();w.push({id:'w'+Date.now(),name:item.name,reason,qty:item.quantity,unit:item.unit,date:new Date().toISOString()});DB.s(DB.k('waste'),w)},
+};
+
+/* ═══════════════════════════════════════
+   AUTH SERVICE
+═══════════════════════════════════════ */
+const Auth={
+  hash(pw){let h=0;for(const c of pw)h=(Math.imul(31,h)+c.charCodeAt(0))|0;return h.toString(16)},
+  register(name,email,pw){
+    const users=DB.users(),norm=email.trim().toLowerCase();
+    if(users[norm])return{ok:false,err:'An account with this email already exists.'};
+    const uid='u'+Date.now();
+    users[norm]={uid,name,email:norm,ph:Auth.hash(pw),at:new Date().toISOString()};
+    DB.saveUsers(users);return{ok:true,uid,name,email:norm};
+  },
+  login(email,pw){
+    const users=DB.users(),norm=email.trim().toLowerCase(),u=users[norm];
+    if(!u)return{ok:false,err:'No account found with this email.'};
+    if(u.ph!==Auth.hash(pw))return{ok:false,err:'Incorrect password.'};
+    return{ok:true,uid:u.uid,name:u.name,email:u.email};
+  },
+  byUid(uid){return Object.values(DB.users()).find(u=>u.uid===uid)||null},
+  updName(uid,name){const users=DB.users(),e=Object.entries(users).find(([,u])=>u.uid===uid);if(e){users[e[0]]={...e[1],name};DB.saveUsers(users)}},
+  remove(uid){const users=DB.users(),e=Object.entries(users).find(([,u])=>u.uid===uid);if(e){delete users[e[0]];DB.saveUsers(users)}},
+};
+
+/* ═══════════════════════════════════════
+   INVENTORY HELPERS
+═══════════════════════════════════════ */
+const Inv={
+  all(f='All'){const i=DB.inv();return f==='All'?i:i.filter(x=>x.location===f)},
+  expiring(days=3){return DB.inv().filter(i=>{if(!i.expiryDate)return false;const d=Inv.daysLeft(i.expiryDate);return d!==null&&d>=0&&d<=days})},
+  expired(){return DB.inv().filter(i=>{if(!i.expiryDate)return false;return Inv.daysLeft(i.expiryDate)<0})},
+  daysLeft(exp){if(!exp)return null;const t=new Date();t.setHours(0,0,0,0);const e=new Date(exp+'T00:00:00');return Math.round((e-t)/86400000)},
+  fmtDate(exp){return exp?new Date(exp).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'No expiry'},
+  locs(){const L=['Fridge','Freezer','Pantry','Basket','Seasonings'],inv=DB.inv();return L.map(n=>({name:n,count:inv.filter(i=>i.location===n).length,em:{Fridge:'🧊',Freezer:'❄️',Pantry:'🗄',Basket:'🧺',Seasonings:'🧂'}[n]}))},
+};
+
+/* ═══════════════════════════════════════
+   CONSTANTS
+═══════════════════════════════════════ */
+const AVATARS=['🏡','🌿','🥘','🌾','🥗','🍲','🧑‍🍳','👨‍👩‍👧','🌻','🐻','🦊','🐸'];
+const DIETS=[{e:'🍗',l:'Omnivore'},{e:'🥗',l:'Vegetarian'},{e:'🌱',l:'Vegan'},{e:'🥩',l:'Keto'},{e:'🌾',l:'Gluten-Free'},{e:'🕌',l:'Halal'}];
+const SKILLS=[{e:'🍳',l:'Beginner',d:'Simple recipes, few steps'},{e:'🧑‍🍳',l:'Intermediate',d:'Comfortable with most techniques'},{e:'👨‍🍳',l:'Advanced',d:'Complex dishes & fine-dining'}];
+const ALLERGIES=['Nuts','Dairy','Gluten','Eggs','Soy','Shellfish','Fish','Sesame'];
+const EMOJIS=['🥚','🥛','🧀','🥩','🥦','🍅','🧅','🥕','🍳','🫙','🧈','🥒','🍋','🍇','🍌','🫐','🥑','🌽','🧄','🍞','🥗','🍗','🍖','🫚','🧃','☕','🍫','🧂','🌶️','🥜'];
+
+/* ═══════════════════════════════════════
+   APP STATE
+═══════════════════════════════════════ */
+let CU=null; // current user
+let invFilt='All';
+let activeId=null,activeState={};
+let recipes=[],activeRecipe=null;
+let selEmoji='🥚';
+let ss={avatar:'🏡',household:'',dietary:'',skill:'',allergies:[],hs:2};
+
+/* ═══════════════════════════════════════
+   BOOT
+═══════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded',()=>{
+  tick();setInterval(tick,30000);
+  const sess=DB.session();
+  if(sess?.uid){const u=Auth.byUid(sess.uid);if(u){boot(u);return}}
+  show('auth');
+});
+
+function boot(user){
+  CU=user;DB.uid=user.uid;
+  if(!DB.profile().setupDone){initSetup();show('setup');return}
+  go('home');
+}
+
+/* ═══════════════════════════════════════
+   NAVIGATION
+═══════════════════════════════════════ */
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById('sc-'+id).classList.add('active')}
+function go(id){
+  show(id);
+  if(id==='home')renderHome();
+  if(id==='inventory')renderInv();
+  if(id==='shopping')renderShop();
+  if(id==='profile')renderProfile();
+}
+
+/* ═══════════════════════════════════════
+   AUTH UI
+═══════════════════════════════════════ */
+function swTab(t){
+  document.getElementById('panel-in').style.display=t==='in'?'':'none';
+  document.getElementById('panel-up').style.display=t==='up'?'':'none';
+  document.getElementById('tab-in').className='auth-tab'+(t==='in'?' on':'');
+  document.getElementById('tab-up').className='auth-tab'+(t==='up'?' on':'');
+  clearAErr();
+}
+function clearAErr(){
+  ['li-em-e','li-pw-e','li-ge','su-nm-e','su-em-e','su-pw-e','su-p2-e','su-ge'].forEach(id=>{const e=document.getElementById(id);if(e){e.textContent='';e.style.display='none'}});
+  ['li-em','li-pw','su-nm','su-em','su-pw','su-p2'].forEach(id=>document.getElementById(id)?.classList.remove('err'));
+}
+function aErr(errId,msg,fieldId){const e=document.getElementById(errId);if(!e)return;e.textContent=msg;e.style.display='block';if(fieldId)document.getElementById(fieldId)?.classList.add('err')}
+
+function doLogin(){
+  clearAErr();
+  const em=document.getElementById('li-em').value.trim(),pw=document.getElementById('li-pw').value;
+  let ok=true;
+  if(!em){aErr('li-em-e','Email is required','li-em');ok=false}
+  else if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){aErr('li-em-e','Enter a valid email','li-em');ok=false}
+  if(!pw){aErr('li-pw-e','Password is required','li-pw');ok=false}
+  if(!ok)return;
+  const btn=document.getElementById('li-btn');btn.disabled=true;btn.textContent='Signing in…';
+  setTimeout(()=>{
+    const r=Auth.login(em,pw);btn.disabled=false;btn.textContent='Sign In';
+    if(!r.ok){aErr('li-ge',r.err,null);document.getElementById('li-ge').style.display='block';return}
+    DB.setSession(r.uid);boot(r);
+  },350);
+}
+
+function doSignup(){
+  clearAErr();
+  const nm=document.getElementById('su-nm').value.trim(),em=document.getElementById('su-em').value.trim();
+  const pw=document.getElementById('su-pw').value,p2=document.getElementById('su-p2').value;
+  let ok=true;
+  if(!nm){aErr('su-nm-e','Name is required','su-nm');ok=false}
+  if(!em){aErr('su-em-e','Email is required','su-em');ok=false}
+  else if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){aErr('su-em-e','Enter a valid email','su-em');ok=false}
+  if(!pw){aErr('su-pw-e','Password is required','su-pw');ok=false}
+  else if(pw.length<6){aErr('su-pw-e','At least 6 characters','su-pw');ok=false}
+  if(pw!==p2){aErr('su-p2-e','Passwords do not match','su-p2');ok=false}
+  if(!ok)return;
+  const btn=document.getElementById('su-btn');btn.disabled=true;btn.textContent='Creating…';
+  setTimeout(()=>{
+    const r=Auth.register(nm,em,pw);btn.disabled=false;btn.textContent='Create Account';
+    if(!r.ok){aErr('su-ge',r.err,null);document.getElementById('su-ge').style.display='block';return}
+    DB.setSession(r.uid);boot(r);
+  },350);
+}
+
+/* ═══════════════════════════════════════
+   PROFILE SETUP
+═══════════════════════════════════════ */
+function initSetup(){
+  ss={avatar:'🏡',household:(CU?.name||'')+"'s Kitchen",dietary:'',skill:'',allergies:[],hs:2};
+  document.getElementById('ss-hh').value=ss.household;
+  buildAvGrid('av-grid');buildDietGrid();buildSkillList();buildAlChips();showSS(1);
+}
+function showSS(n){
+  document.querySelectorAll('.setup-step').forEach(s=>s.classList.remove('on'));
+  document.getElementById('ss'+n)?.classList.add('on');
+  document.getElementById('pf').style.width=Math.round(n/4*100)+'%';
+  document.getElementById('pl').textContent='Step '+n+' of 4';
+}
+function ssNext(step){
+  document.querySelectorAll('[id^="ss-"][id$="-e"]').forEach(e=>e.style.display='none');
+  if(step===1){const h=document.getElementById('ss-hh').value.trim();if(!h){const e=document.getElementById('ss-hh-e');e.textContent='Please enter a household name';e.style.display='block';return}ss.household=h}
+  if(step===2&&!ss.dietary){const e=document.getElementById('ss-di-e');e.textContent='Pick a dietary preference';e.style.display='block';return}
+  if(step===3&&!ss.skill){const e=document.getElementById('ss-sk-e');e.textContent='Select your skill level';e.style.display='block';return}
+  showSS(step+1);
+}
+function ssBack(step){showSS(step-1)}
+
+function buildAvGrid(id){
+  document.getElementById(id).innerHTML=AVATARS.map(a=>`<div class="av-opt${a===ss.avatar?' on':''}" onclick="pickAv(this,'${a}','${id}')">${a}</div>`).join('');
+}
+function pickAv(el,a,id){document.getElementById(id).querySelectorAll('.av-opt').forEach(e=>e.classList.remove('on'));el.classList.add('on');ss.avatar=a}
+
+function buildDietGrid(){
+  document.getElementById('diet-grid').innerHTML=DIETS.map(d=>`<div class="diet-opt${d.l===ss.dietary?' on':''}" onclick="pickDiet(this,'${d.l}')"><div class="diet-icon">${d.e}</div><div class="diet-lbl">${d.l}</div></div>`).join('');
+}
+function pickDiet(el,d){document.querySelectorAll('.diet-opt').forEach(e=>e.classList.remove('on'));el.classList.add('on');ss.dietary=d}
+
+function buildSkillList(){
+  document.getElementById('skill-list').innerHTML=SKILLS.map(s=>`<div class="skill-opt${s.l===ss.skill?' on':''}" onclick="pickSkill(this,'${s.l}')"><div class="skill-icon">${s.e}</div><div><div class="skill-name">${s.l}</div><div class="skill-desc">${s.d}</div></div></div>`).join('');
+}
+function pickSkill(el,s){document.querySelectorAll('.skill-opt').forEach(e=>e.classList.remove('on'));el.classList.add('on');ss.skill=s}
+
+function buildAlChips(){
+  document.getElementById('al-wrap').innerHTML=ALLERGIES.map(a=>`<div class="al-chip${ss.allergies.includes(a)?' on':''}" onclick="togAl(this,'${a}')">${a}</div>`).join('');
+}
+function togAl(el,a){el.classList.toggle('on');const i=ss.allergies.indexOf(a);if(i>=0)ss.allergies.splice(i,1);else ss.allergies.push(a)}
+
+function chHS(d){ss.hs=Math.max(1,Math.min(10,ss.hs+d));document.getElementById('hs-num').textContent=ss.hs;document.getElementById('hs-lbl').textContent=ss.hs+' people'}
+
+function finishSetup(){
+  DB.saveProfile({setupDone:true,avatar:ss.avatar,household:ss.household,name:CU?.name||''});
+  DB.saveSettings({dietary:ss.dietary,skill:ss.skill,allergies:ss.allergies,householdSize:ss.hs,notifications:true,apiKey:''});
+  go('home');toast('🎉 Welcome to Smart Pantry!');
+}
+
+/* ═══════════════════════════════════════
+   HOME
+═══════════════════════════════════════ */
+function renderHome(){
+  const now=new Date(),h=now.getHours(),prof=DB.profile();
+  const name=(prof.name||CU?.name||'there').split(' ')[0];
+  document.getElementById('h-gr').textContent=(h<12?'Good morning':h<17?'Good afternoon':'Good evening')+', '+name+'! 👋';
+  document.getElementById('h-date').textContent=now.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+  document.getElementById('h-bd').textContent=prof.avatar||'🍳';
+  const inv=DB.inv(),exp=Inv.expiring(),bad=Inv.expired();
+  document.getElementById('s-tot').textContent=inv.length;
+  document.getElementById('s-exp').textContent=exp.length;
+  document.getElementById('s-bad').textContent=bad.length;
+  document.getElementById('h-ti').textContent=inv.length?"What's for dinner?":'Add your first item!';
+  const fr=inv.length-exp.length-bad.length;
+  document.getElementById('h-st').textContent=inv.length?fr+' fresh · '+exp.length+' expiring · '+bad.length+' expired':'Your pantry is empty — tap + to add items';
+  const nb=document.getElementById('notif-bar'),urgent=[...bad,...exp];
+  if(urgent.length){nb.style.display='flex';const p=[];if(bad.length)p.push(bad.length+' expired');if(exp.length)p.push(exp.length+' expiring soon');document.getElementById('notif-txt').textContent=p.join(' · ')}else nb.style.display='none';
+  const al=document.getElementById('al-lbl'),ar=document.getElementById('al-row');
+  if(urgent.length){
+    al.style.display='block';
+    ar.innerHTML=urgent.slice(0,8).map(item=>{const d=Inv.daysLeft(item.expiryDate);const lbl=d===null?'—':d<0?'Expired!':d===0?'Today!':d+'d left';const w=d!==null&&d>=0&&d<=1;return`<div class="alert-card${w?' w':''}" onclick="openItem('${item.id}')"><div class="alert-em">${item.emoji}</div><div class="alert-nm">${item.name}</div><div class="alert-dy${w?' w':''}">${lbl}</div></div>`}).join('');
+  }else{al.style.display='none';ar.innerHTML=''}
+  const locs=Inv.locs(),mx=Math.max(...locs.map(l=>l.count),1);
+  document.getElementById('loc-grid').innerHTML=locs.map(loc=>`<div class="loc-card" onclick="go('inventory');filt('${loc.name}',null)"><div class="loc-em">${loc.em}</div><div class="loc-nm">${loc.name}</div><div class="loc-ct">${loc.count} item${loc.count!==1?'s':''}</div><div class="loc-bar"><div class="loc-fill" style="width:${Math.round(loc.count/mx*100)}%"></div></div></div>`).join('');
+}
+
+/* ═══════════════════════════════════════
+   INVENTORY
+═══════════════════════════════════════ */
+function renderInv(f){
+  if(f!==undefined)invFilt=f;
+  const items=Inv.all(invFilt),list=document.getElementById('inv-list');
+  if(!items.length){list.innerHTML=`<div style="text-align:center;padding:48px 20px;color:var(--muted)"><div style="font-size:44px;margin-bottom:12px">📭</div><div style="font-size:14px;font-weight:800">No items here yet</div><div style="font-size:11px;margin-top:4px">Tap + to add items</div></div>`;return}
+  const sorted=[...items].sort((a,b)=>(Inv.daysLeft(a.expiryDate)??9999)-(Inv.daysLeft(b.expiryDate)??9999));
+  list.innerHTML=sorted.map(item=>{
+    const d=Inv.daysLeft(item.expiryDate);let cls='fresh',bc='b-grn',bt='Fresh';
+    if(d!==null){if(d<0){cls='expired';bc='b-red';bt='Expired'}else if(d<=3){cls='exp-soon';bc='b-yel';bt=d+'d left'}else bt=d+'d'}else bt='—';
+    return`<div class="item-card ${cls} au" onclick="openItem('${item.id}')"><div class="item-ico">${item.emoji}</div><div class="item-inf"><div class="item-nm">${item.name}</div><div class="item-mt">${item.quantity} ${item.unit} · ${item.location} · ${item.category}</div></div><div class="badge ${bc}">${bt}</div></div>`;
+  }).join('');
+}
+function filt(loc,btn){
+  invFilt=loc;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
+  if(btn)btn.classList.add('on');
+  else document.querySelectorAll('.chip').forEach(c=>{if(c.textContent.trim().includes(loc)||(loc==='All'&&c.textContent.trim()==='All'))c.classList.add('on')});
+  renderInv();
+}
+
+/* ═══════════════════════════════════════
+   SHOPPING
+═══════════════════════════════════════ */
+function renderShop(){
+  const list=DB.shop(),unc=list.filter(i=>!i.chk).length,done=list.filter(i=>i.chk).length;
+  document.getElementById('sh-meta').textContent=unc+' item'+(unc!==1?'s':'')+' to grab';
+  const c=document.getElementById('sh-list');
+  if(!list.length){
+    c.innerHTML=`<div style="text-align:center;padding:48px 20px;color:var(--muted)">
+      <div style="font-size:44px;margin-bottom:12px">🛒</div>
+      <div style="font-size:14px;font-weight:800">Your list is empty</div>
+      <div style="font-size:11px;margin-top:4px">Tap + to add items or use Auto-Generate</div>
+    </div>`;return;
+  }
+  const unchecked=list.filter(i=>!i.chk),checked=list.filter(i=>i.chk);
+  const cats={};
+  unchecked.forEach(it=>{const k=it.category||'Other';if(!cats[k])cats[k]=[];cats[k].push(it)});
+  let html='';
+  Object.entries(cats).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([cat,items])=>{
+    html+=`<div class="shop-section-hdr"><span>${catEmoji(cat)} ${cat}</span></div>`;
+    html+=items.map(it=>shopRow(it)).join('');
+  });
+  if(checked.length){
+    html+=`<div class="shop-section-hdr"><span>&#10003; Done (${checked.length})</span><button class="clear-done-btn" onclick="clearDone()">Clear all</button></div>`;
+    html+=checked.map(it=>shopRow(it)).join('');
+  }
+  c.innerHTML=html;
+}
+function shopRow(it){
+  const note=it.note?` <span style="font-weight:600;color:var(--muted);font-size:11px">· ${it.note}</span>`:'';
+  return `<div class="shop-item${it.chk?' chk':''}" onclick="togShop('${it.id}')">
+    <div class="shop-cb">${it.chk?'&#10003;':''}</div>
+    <div style="flex:1;min-width:0">
+      <div class="shop-nm">${it.emoji||'🛒'} ${it.name}${note}</div>
+      <div class="shop-cat">${it.category||'Other'}</div>
+    </div>
+    <div class="shop-qt">${it.quantity} ${it.unit||''}</div>
+    <button class="shop-del" onclick="delShopItem(event,'${it.id}')">&#10005;</button>
+  </div>`;
+}
+function catEmoji(cat){
+  const m={Produce:'🥦',Dairy:'🥛',Meat:'🥩',Grains:'🌾',Beverages:'🧃',Snacks:'🍪',
+    Frozen:'❄️',Condiments:'🫙',Household:'🧹',Recipe:'📖',Other:'📦'};
+  return m[cat]||'📦';
+}
+function autoList(){
+  const inv=DB.inv(),bad=Inv.expired(),existing=DB.shop().map(s=>s.name.toLowerCase()),toAdd=[];
+  bad.forEach(i=>{if(!existing.includes(i.name.toLowerCase()))toAdd.push(i)});
+  inv.filter(i=>i.quantity<=0).forEach(i=>{if(!existing.includes(i.name.toLowerCase())&&!toAdd.find(a=>a.name===i.name))toAdd.push(i)});
+  if(!toAdd.length){toast('✅ Nothing to restock right now');return}
+  toAdd.forEach(i=>DB.addShop({name:i.name,emoji:i.emoji,quantity:1,unit:i.unit,category:i.category||'Other'}));
+  renderShop();toast('🛒 Added '+toAdd.length+' item'+(toAdd.length!==1?'s':'')+' to list!');
+}
+function togShop(id){DB.togShop(id);renderShop()}
+function delShopItem(e,id){e.stopPropagation();DB.saveShop(DB.shop().filter(i=>i.id!==id));renderShop()}
+function clearDone(){DB.saveShop(DB.shop().filter(i=>!i.chk));renderShop();toast('🗑 Cleared completed items')}
+let saEmoji='🛒';
+function openShopAdd(){
+  saEmoji='🛒';
+  document.getElementById('sa-nm').value='';
+  document.getElementById('sa-qt').value='1';
+  document.getElementById('sa-nt').value='';
+  document.getElementById('sa-un').value='units';
+  document.getElementById('sa-ca').value='Other';
+  document.getElementById('sa-em-pick').innerHTML=EMOJIS.map(e=>
+    `<div class="em-opt${e===saEmoji?' on':''}" onclick="pickSaEm(this,'${e}')">${e}</div>`
+  ).join('');
+  openM('m-shop-add');
+}
+function pickSaEm(el,e){document.querySelectorAll('#sa-em-pick .em-opt').forEach(x=>x.classList.remove('on'));el.classList.add('on');saEmoji=e}
+function doShopAdd(){
+  const nm=document.getElementById('sa-nm').value.trim();
+  if(!nm){toast('Please enter an item name');return}
+  DB.addShop({name:nm,emoji:saEmoji,quantity:parseFloat(document.getElementById('sa-qt').value)||1,unit:document.getElementById('sa-un').value,category:document.getElementById('sa-ca').value,note:document.getElementById('sa-nt').value.trim()||null});
+  closeM('m-shop-add');renderShop();toast('✅ '+nm+' added to list!');
+}
+
+/* ═══════════════════════════════════════
+   PROFILE
+═══════════════════════════════════════ */
+function renderProfile(){
+  const prof=DB.profile(),s=DB.settings();
+  document.getElementById('p-av').textContent=prof.avatar||'👤';
+  document.getElementById('p-nm').textContent=prof.household||CU?.name||'My Household';
+  document.getElementById('p-em').textContent=CU?.email||'';
+  const w=DB.waste(),con=w.filter(x=>x.reason==='consumed').length;
+  document.getElementById('w-sv').textContent=con;
+  document.getElementById('w-lb').textContent=(con*0.4).toFixed(1);
+  document.getElementById('w-pt').textContent=con*10+DB.inv().length*2;
+  const k=s.apiKey;document.getElementById('api-k').value=k||'';
+  document.getElementById('api-k').placeholder=k?'✓ Key saved':'sk-ant-api03-…';
+  document.getElementById('p-di').textContent=s.dietary||'—';
+  document.getElementById('p-sk').textContent=s.skill||'—';
+  document.getElementById('p-hs').textContent=(s.householdSize||2)+' people';
+}
+function saveKey(){const k=document.getElementById('api-k').value.trim();const s=DB.settings();s.apiKey=k;DB.saveSettings(s);toast(k?'✅ API key saved!':'🗑 Key cleared')}
+function cycP(key,opts,elId){const s=DB.settings();const i=opts.indexOf(s[key]);s[key]=opts[(i+1)%opts.length];DB.saveSettings(s);document.getElementById(elId).textContent=s[key];toast(key[0].toUpperCase()+key.slice(1)+': '+s[key])}
+function exportData(){const d={inventory:DB.inv(),shopping:DB.shop(),waste:DB.waste(),exportedAt:new Date().toISOString()};const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(d,null,2)],{type:'application/json'}));a.download='smart-pantry-export.json';a.click();toast('📤 Exported!')}
+function signOut(){if(!confirm('Sign out?'))return;DB.clearSession();CU=null;DB.uid=null;show('auth');clearAErr();['li-em','li-pw','su-nm','su-em','su-pw','su-p2'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=''})}
+function delAccount(){
+  if(!confirm('Delete your account and ALL data? This cannot be undone.'))return;
+  if(CU){['inv','shop','waste','profile','settings'].forEach(k=>localStorage.removeItem(`sp_${CU.uid}_${k}`));Auth.remove(CU.uid)}
+  DB.clearSession();CU=null;DB.uid=null;show('auth');toast('Account deleted');
+}
+
+/* ═══════════════════════════════════════
+   EDIT PROFILE MODAL
+═══════════════════════════════════════ */
+function openEP(){
+  const prof=DB.profile();
+  document.getElementById('ep-nm').value=CU?.name||'';
+  document.getElementById('ep-hh').value=prof.household||'';
+  buildAvGrid('ep-av-grid');
+  openM('m-ep');
+}
+function saveEP(){
+  const nm=document.getElementById('ep-nm').value.trim(),hh=document.getElementById('ep-hh').value.trim();
+  if(!nm||!hh){toast('Name and household are required');return}
+  DB.saveProfile({...DB.profile(),name:nm,household:hh,avatar:ss.avatar});
+  if(CU){Auth.updName(CU.uid,nm);CU.name=nm}
+  closeM('m-ep');renderProfile();toast('✅ Profile updated!');
+}
+
+/* ═══════════════════════════════════════
+   ITEM MODAL
+═══════════════════════════════════════ */
+function openItem(id){
+  const item=DB.getItem(id);if(!item)return;
+  activeId=id;activeState={...item};
+  document.getElementById('mi-em').textContent=item.emoji;
+  document.getElementById('mi-nm').textContent=item.name;
+  document.getElementById('mi-sb').textContent=item.location+' · Added '+new Date(item.at).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  document.getElementById('mi-q').textContent=item.quantity;
+  document.getElementById('mi-u').textContent=item.unit;
+  const d=Inv.daysLeft(item.expiryDate);
+  document.getElementById('mi-ed').textContent=Inv.fmtDate(item.expiryDate);
+  const de=document.getElementById('mi-dd');
+  if(d===null){de.textContent='No expiry';de.className='exp-days d-ok'}
+  else if(d<0){de.textContent='Expired!';de.className='exp-days d-bad'}
+  else if(d<=3){de.textContent=d+'d — use soon!';de.className='exp-days d-warn'}
+  else{de.textContent=d+' days left';de.className='exp-days d-ok'}
+  if(item.expiryDate)document.getElementById('mi-di').value=item.expiryDate;
+  document.querySelectorAll('.cond-p').forEach(p=>p.classList.remove('on','f','o','b'));
+  const ci=['fresh','ok','bad'].indexOf(item.condition||'fresh'),cn=['f','o','b'];
+  document.querySelectorAll('.cond-p')[ci>=0?ci:0]?.classList.add('on',cn[ci>=0?ci:0]);
+  document.getElementById('mi-locs').innerHTML=['Fridge','Freezer','Pantry','Basket','Seasonings'].map(l=>`<div class="loc-p${l===item.location?' on':''}" onclick="setLoc(this,'${l}')">${l}</div>`).join('');
+  openM('m-item');
+}
+function doSaveItem(){
+  DB.updItem(activeId,{quantity:parseInt(document.getElementById('mi-q').textContent),expiryDate:document.getElementById('mi-di').value,condition:activeState.condition||'fresh',location:activeState.location||'Fridge'});
+  closeM('m-item');toast('✅ Item updated!');
+  if(document.getElementById('sc-home').classList.contains('active'))renderHome();
+  if(document.getElementById('sc-inventory').classList.contains('active'))renderInv();
+}
+function doDelItem(){
+  const item=DB.getItem(activeId);DB.logWaste(item,'removed');DB.delItem(activeId);
+  closeM('m-item');toast('🗑 '+item?.name+' removed');
+  if(document.getElementById('sc-home').classList.contains('active'))renderHome();
+  if(document.getElementById('sc-inventory').classList.contains('active'))renderInv();
+}
+function chQ(d){const e=document.getElementById('mi-q');e.textContent=Math.max(0,parseInt(e.textContent)+d)}
+function setCond(el,type){document.querySelectorAll('.cond-p').forEach(p=>p.classList.remove('on','f','o','b'));const m={fresh:'f',ok:'o',bad:'b'};el.classList.add('on',m[type]);activeState.condition=type}
+function setLoc(el,loc){document.querySelectorAll('.loc-p').forEach(p=>p.classList.remove('on'));el.classList.add('on');activeState.location=loc}
+function onExpCh(v){if(!v)return;document.getElementById('mi-ed').textContent=Inv.fmtDate(v);const d=Inv.daysLeft(v),de=document.getElementById('mi-dd');if(d<0){de.textContent='Expired!';de.className='exp-days d-bad'}else if(d<=3){de.textContent=d+'d — use soon!';de.className='exp-days d-warn'}else{de.textContent=d+' days left';de.className='exp-days d-ok'}}
+
+/* ═══════════════════════════════════════
+   ADD ITEM MODAL
+═══════════════════════════════════════ */
+function openAdd(){
+  const d=new Date();d.setDate(d.getDate()+7);
+  document.getElementById('a-ex').value=d.toISOString().split('T')[0];
+  document.getElementById('a-nm').value='';document.getElementById('a-qt').value='1';
+  selEmoji='🥚';
+  document.getElementById('em-pick').innerHTML=EMOJIS.map(e=>`<div class="em-opt${e===selEmoji?' on':''}" onclick="pickEm(this,'${e}')">${e}</div>`).join('');
+  openM('m-add');
+}
+function pickEm(el,e){document.querySelectorAll('.em-opt').forEach(x=>x.classList.remove('on'));el.classList.add('on');selEmoji=e}
+function doAdd(){
+  const nm=document.getElementById('a-nm').value.trim();if(!nm){toast('Please enter a name');return}
+  DB.addItem({emoji:selEmoji,name:nm,quantity:parseFloat(document.getElementById('a-qt').value)||1,unit:document.getElementById('a-un').value,expiryDate:document.getElementById('a-ex').value,category:document.getElementById('a-ca').value,location:document.getElementById('a-lo').value,condition:'fresh'});
+  closeM('m-add');toast('✅ '+nm+' added!');
+  if(document.getElementById('sc-home').classList.contains('active'))renderHome();
+  if(document.getElementById('sc-inventory').classList.contains('active'))renderInv();
+}
+
+/* ═══════════════════════════════════════
+   RECIPE MODAL
+═══════════════════════════════════════ */
+async function getRecipes(){
+  const s=DB.settings(),c=document.getElementById('rc-box');
+  if(!s.apiKey){c.innerHTML=`<div class="ai-load"><div style="font-size:36px">🔑</div><div style="font-size:13px;font-weight:800;color:var(--muted)">API key required</div><div style="font-size:11px;color:var(--tan);font-weight:700;margin-top:4px">Add your Anthropic key in Profile ⚙️</div></div>`;return}
+  if(!DB.inv().length){c.innerHTML=`<div class="ai-load"><div style="font-size:36px">📭</div><div style="font-size:13px;font-weight:800;color:var(--muted)">Your pantry is empty</div><div style="font-size:11px;color:var(--tan);font-weight:700;margin-top:4px">Add some items first!</div></div>`;return}
+  c.innerHTML=`<div class="ai-load"><div class="spinner"></div><div style="font-size:13px;font-weight:800;color:var(--muted)">Claude is cooking up ideas…</div></div>`;
+  try{
+    const today=new Date();
+    const ctx=DB.inv().map(i=>{const d=i.expiryDate?Math.round((new Date(i.expiryDate)-today)/86400000):null;const tag=d===null?'':(d<0?' [EXPIRED]':d<=3?` [expires in ${d}d — USE SOON]`:` [${d}d left]`);return`- ${i.emoji} ${i.name} (${i.quantity} ${i.unit}${tag}, ${i.location})`}).join('\n');
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':s.apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:2000,system:'You are the Smart Pantry AI recipe engine. Return ONLY valid JSON — no markdown, no prose.',messages:[{role:'user',content:`Pantry:\n${ctx}\n\nDietary: ${s.dietary}\nSkill: ${s.skill}\nAllergies: ${(s.allergies||[]).join(', ')||'none'}\n\nGenerate 4 recipes prioritizing soon-to-expire items. Return ONLY a JSON array:\n[{"emoji":"🍳","title":"Name","cuisine":"Italian","prepMins":20,"servings":2,"difficulty":"Easy","matchPercent":85,"tags":["Quick"],"usesSoonExpiring":true,"ingredients":[{"name":"Eggs","amount":"3","unit":"units","inPantry":true}],"steps":["Step 1.","Step 2."]}]`}]})});
+    if(!resp.ok){const e=await resp.json().catch(()=>({}));throw new Error(e.error?.message||'HTTP '+resp.status)}
+    const data=await resp.json();const txt=(data.content?.[0]?.text||'[]').replace(/```json|```/g,'').trim();
+    recipes=JSON.parse(txt);renderRecipes(recipes);
+  }catch(err){
+    let msg=err.message||'Unknown error';
+    if(msg.includes('401')||msg.toLowerCase().includes('invalid'))msg='Invalid API key — check Profile settings';
+    c.innerHTML=`<div class="ai-load"><div style="font-size:36px">⚠️</div><div style="font-size:13px;font-weight:800;color:var(--terra)">${msg}</div><div style="font-size:11px;color:var(--tan);font-weight:700;margin-top:4px">Tap "Get AI Recipes" to retry</div></div>`;
+  }
+}
+function renderRecipes(recs){
+  if(!recs?.length){document.getElementById('rc-box').innerHTML=`<div class="ai-load"><div style="font-size:36px">🍽️</div><div style="font-size:13px;font-weight:800;color:var(--muted)">No recipes returned</div></div>`;return}
+  document.getElementById('rc-box').innerHTML=recs.map((r,i)=>`<div class="recipe-card au" style="animation-delay:${i*.07}s" onclick="openRecipe(${i})"><div class="rc-img"><div style="font-size:50px">${r.emoji||'🍳'}</div><div class="rc-match">${r.matchPercent||80}% match</div>${r.usesSoonExpiring?'<div style="position:absolute;top:8px;left:10px;background:rgba(200,112,74,.85);color:#fff;font-size:9px;font-weight:800;padding:3px 8px;border-radius:20px">⚡ Uses expiring</div>':''}</div><div class="rc-body"><div class="rc-title">${r.title}</div><div class="rc-meta"><span class="rc-tag">⏱ ${r.prepMins}min</span><span class="rc-tag">👤 ${r.servings}</span><span class="rc-tag">${r.difficulty||'Easy'}</span>${(r.tags||[]).slice(0,2).map(t=>`<span class="rc-tag">${t}</span>`).join('')}</div></div></div>`).join('');
+}
+function openRecipe(idx){
+  const r=recipes[idx];if(!r)return;activeRecipe=r;
+  document.getElementById('rd-em').textContent=r.emoji||'🍳';
+  document.getElementById('rd-ti').textContent=r.title;
+  document.getElementById('rd-meta').innerHTML=[`<span class="rd-tag">⏱ ${r.prepMins}min</span>`,`<span class="rd-tag">👤 ${r.servings} servings</span>`,`<span class="rd-tag">${r.cuisine||'International'}</span>`,`<span class="rd-tag">${r.difficulty||'Easy'}</span>`].join('');
+  document.getElementById('rd-ingr').innerHTML=(r.ingredients||[]).map(i=>`<div class="ri-item"><div class="ri-dot"></div><span>${i.name}</span><span style="color:var(--muted);font-size:11px;margin-left:4px">${i.amount} ${i.unit}</span><div class="${i.inPantry?'ri-have':'ri-need'}">${i.inPantry?'✓ Have':'+ Need'}</div></div>`).join('');
+  document.getElementById('rd-steps').innerHTML=(r.steps||[]).map((s,i)=>`<div class="rs-step"><div class="rs-num">${i+1}</div><div class="rs-txt">${s}</div></div>`).join('');
+  openM('m-recipe');
+}
+function addMissing(){
+  if(!activeRecipe)return;
+  const missing=(activeRecipe.ingredients||[]).filter(i=>!i.inPantry);
+  if(!missing.length){toast('✅ You have everything!');return}
+  missing.forEach(i=>DB.addShop({name:i.name,emoji:'🛒',quantity:parseFloat(i.amount)||1,unit:i.unit,category:'Recipe'}));
+  closeM('m-recipe');go('shopping');toast('🛒 Added '+missing.length+' item'+(missing.length>1?'s':'')+' to list!');
+}
+
+/* ═══════════════════════════════════════
+   MODAL UTILS
+═══════════════════════════════════════ */
+function openM(id){document.getElementById(id).classList.add('open')}
+function closeM(id){document.getElementById(id).classList.remove('open')}
+function closeMBG(e,id){if(e.target.id===id)closeM(id)}
+
+/* ═══════════════════════════════════════
+   TOAST + CLOCK
+═══════════════════════════════════════ */
+let _tt=null;
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(_tt);_tt=setTimeout(()=>t.classList.remove('show'),2600)}
+function tick(){document.getElementById('clk').textContent=new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}).replace(' ','')}
+</script>
+</body>
+</html>
