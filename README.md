@@ -1,50 +1,116 @@
-# Welcome to your Expo app 👋
+# 🥗 Smart Pantry
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Smart Pantry is a React Native mobile app built with Expo that helps users track food items, organize them by storage location, and reduce food waste by monitoring expiration dates.
 
-## Get started
+---
 
-1. Install dependencies
+## 🚀 Features
 
-   ```bash
-   npm install
-   ```
+### 📦 Item Management (CRUD)
+- Add new food items
+- Edit existing items
+- Delete items (with confirmation)
+- Shared state updates across the entire app
 
-2. Start the app
+### 🧊 Storage Organization
+- Organize items by:
+  - Fridge - Main
+  - Fridge - Freezer
+  - Pantry
+  - Seasonings
+- Dynamic storage screens with item counts
 
-   ```bash
-   npx expo start
-   ```
+### 🏷️ Category Filtering
+- Filter items by category (Produce, Meat, Dairy, etc.)
+- Filters dynamically update based on available items
 
-In the output, you'll find options to open the app in a
+### ⏳ Expiration Tracking
+- Automatically calculates item status:
+  - ✅ Fresh
+  - ⚠️ Expiring soon (≤ 3 days)
+  - ❌ Expired
+- Visual feedback:
+  - Orange → Expiring soon
+  - Red → Expired
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+### 📊 Dashboard Overview
+- Total items
+- Expiring soon count
+- Expired count
+- Storage summaries
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+---
 
-## Get a fresh project
+## 🛠️ Tech Stack
 
-When you're ready, run:
+- React Native (Expo)
+- Expo Router (file-based navigation)
+- TypeScript
+- React Context (state management)
+- Custom UI components
+
+---
+
+## ⚙️ Setup Instructions
+
+### 1. Clone the repository
 
 ```bash
-npm run reset-project
+git clone https://github.com/MiaV14/CS4800SmartPantryProject.git
+cd CS4800SmartPantryProject
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### 2. Install dependencies
 
-## Learn more
+```bash
+npm install
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+### 3. Run the app
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```bash
+npx expo start
+```
 
-## Join the community
+---
 
-Join our community of developers creating universal apps.
+## 📱 Current Status
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- Core CRUD functionality complete
+- Expiration system implemented
+- UI and navigation fully functional
+- Data currently stored in memory (no backend yet)
+
+---
+
+## 🔐 Upcoming Features
+
+- User authentication (login/signup)
+- Cloud database (user-specific data)
+- Barcode scanning
+- Receipt scanning
+
+---
+
+## 🎯 Goal
+
+The goal of Smart Pantry is to help users:
+- Stay organized
+- Reduce food waste
+- Easily track what they have at home
+
+---
+
+## 👩‍💻 Creators
+
+### Hailey Campbell
+- 
+
+### Jeannette Ruiz
+- Frontend development
+- UI/UX design
+- Core app architecture (React Native + Expo Router)
+- State management and item system
+
+### Mia Vasquez
+- Front
