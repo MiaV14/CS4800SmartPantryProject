@@ -34,7 +34,13 @@ export default function SignUpScreen() {
     try {
       setSubmitting(true);
       await signup(trimmedEmail, password);
-      router.replace('/(tabs)');
+
+      Alert.alert(
+        'Check your email',
+        'Your account was created. Please confirm your email before logging in.'
+      );
+
+      router.push('/(auth)/login');
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Something went wrong.';
