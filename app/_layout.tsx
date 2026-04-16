@@ -1,4 +1,4 @@
-import { AuthProvider } from '@/context/AuthContext';
+import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { FoodItemsProvider } from '@/context/FoodItemsContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
@@ -22,6 +22,32 @@ import { OleoScriptSwashCaps_400Regular } from '@expo-google-fonts/oleo-script-s
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { ActivityIndicator, View } from 'react-native';
+
+function RootNavigator() {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Protected guard={!user}>
+        <Stack.Screen name="(auth)" />
+      </Stack.Protected>
+
+      <Stack.Protected guard={!!user}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="storage/[storageId]" />
+      </Stack.Protected>
+    </Stack>
+  );
+}
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -47,12 +73,7 @@ export default function RootLayout() {
     <AuthProvider>
       <FoodItemsProvider>
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="index" />
-            <Stack.Screen name="(auth)" />
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="storage/[storageId]" />
-          </Stack>
+          <RootNavigator />
           <StatusBar style="auto" />
         </ThemeProvider>
       </FoodItemsProvider>
