@@ -1,98 +1,194 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useMemo } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import AppText from '@/components/ui/AppText';
+import OverviewCard from '@/components/ui/OverviewCard';
+import SearchBar from '@/components/ui/SearchBar';
+import StorageCard from '@/components/ui/StorageCard';
+import { COLORS } from '@/constants/colors';
+import { useAuth } from '@/context/AuthContext';
+import { useFoodItems } from '@/context/FoodItemsContext';
+import { getExpiryStatus } from '@/utils/expiry';
+
+const STORAGE_CONFIG = [
+  {
+    id: 'fridge-main',
+    name: 'Fridge - Main',
+  },
+  {
+    id: 'fridge-freezer',
+    name: 'Fridge - Freezer',
+  },
+  {
+    id: 'pantry',
+    name: 'Pantry',
+  },
+  {
+    id: 'seasonings',
+    name: 'Seasonings',
+  },
+];
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const router = useRouter();
+  const { items } = useFoodItems();
+  const { user, logout } = useAuth();
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  const storageSummaries = useMemo(() => {
+    return STORAGE_CONFIG.map((storage) => {
+      const storageItems = items.filter((item) => item.storageId === storage.id);
+
+      const expiringCount = storageItems.filter(
+        (item) => getExpiryStatus(item.expirationDate) === 'expiring'
+      ).length;
+
+      return {
+        ...storage,
+        itemCount: storageItems.length,
+        expiringCount,
+      };
+    });
+  }, [items]);
+
+  const totalItemCount = useMemo(() => items.length, [items]);
+
+  const expiringSoonCount = useMemo(() => {
+    return items.filter(
+      (item) => getExpiryStatus(item.expirationDate) === 'expiring'
+    ).length;
+  }, [items]);
+
+  const expiredCount = useMemo(() => {
+    return items.filter(
+      (item) => getExpiryStatus(item.expirationDate) === 'expired'
+    ).length;
+  }, [items]);
+
+  const firstName = useMemo(() => {
+    if (!user?.email) return 'User';
+    return user.email.split('@')[0];
+  }, [user]);
+
+  const handleLogout = () => {
+    logout();
+    router.replace('/(auth)/login');
+  };
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.topBar}>
+        <View style={styles.searchWrapper}>
+          <SearchBar placeholder="Search items" />
+        </View>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.banner}>
+          <AppText variant="heroGreeting" style={styles.bannerGreeting}>
+            Good morning, {firstName}!
+          </AppText>
+
+          <AppText variant="heroTitle">What’s for Breakfast?</AppText>
+        </View>
+
+        <View style={styles.overviewSection}>
+          <AppText variant="sectionTitle">Overview</AppText>
+
+          <View style={styles.overviewRow}>
+            <OverviewCard label="Total" count={totalItemCount} />
+            <OverviewCard label="Expiring Soon" count={expiringSoonCount} />
+            <OverviewCard label="Expired" count={expiredCount} />
+          </View>
+        </View>
+
+        <View style={styles.storageSection}>
+          <AppText variant="sectionTitle">Storage</AppText>
+
+          <View style={styles.storageContainer}>
+            {storageSummaries.map((storage) => (
+              <StorageCard
+                key={storage.id}
+                name={storage.name}
+                itemCount={storage.itemCount}
+                expiringCount={storage.expiringCount}
+                onPress={() =>
+                  router.push({
+                    pathname: '/storage/[storageId]',
+                    params: { storageId: storage.id },
+                  })
+                }
+              />
+            ))}
+          </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.honeydew,
+  },
+  topBar: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 8,
+    gap: 10,
+  },
+  searchWrapper: {
+    width: '100%',
+  },
+  logoutButton: {
+    alignSelf: 'flex-end',
+    backgroundColor: COLORS.mint_leaf,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderTopWidth: 2,
+    borderLeftWidth: 2,
+    borderRightWidth: 3,
+    borderBottomWidth: 3,
+    borderColor: COLORS.blue_spruce,
+  },
+  logoutText: {
+    color: COLORS.blue_spruce,
+  },
+  scrollContent: {
+    padding: 16,
+    gap: 24,
+    paddingBottom: 24,
+  },
+  banner: {
+    backgroundColor: COLORS.mint_leaf,
+    borderRadius: 18,
+    padding: 16,
+    borderTopWidth: 2,
+    borderLeftWidth: 2,
+    borderRightWidth: 3,
+    borderBottomWidth: 3,
+    borderColor: COLORS.blue_spruce,
+  },
+  bannerGreeting: {
+    marginBottom: 6,
+  },
+  overviewSection: {
+    gap: 8,
+  },
+  storageSection: {
+    gap: 8,
+  },
+  overviewRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     gap: 8,
   },
-  stepContainer: {
+  storageContainer: {
     gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
   },
 });
