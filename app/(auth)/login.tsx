@@ -1,16 +1,8 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import {
-    Alert,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    StyleSheet,
-    View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Alert, Pressable, StyleSheet } from 'react-native';
 
+import AuthScreenShell from '@/components/auth/AuthScreenShell';
 import AppButton from '@/components/ui/AppButton';
 import AppInput from '@/components/ui/AppInput';
 import AppText from '@/components/ui/AppText';
@@ -25,9 +17,16 @@ export default function LoginScreen() {
   const [submitting, setSubmitting] = useState(false);
 
   const handleLogin = async () => {
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail || !password) {
+      Alert.alert('Missing fields', 'Please enter both email and password.');
+      return;
+    }
+
     try {
       setSubmitting(true);
-      await login(email, password);
+      await login(trimmedEmail, password);
       router.replace('/(tabs)');
     } catch (error) {
       const message =
@@ -39,135 +38,62 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <View style={styles.logoWrapper}>
-          <Image
-            source={require('../../assets/images/mdi_leaf.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-        </View>
-
-        <View style={styles.card}>
-          <AppText variant="authTitle" style={styles.title}>
-            Welcome Back!
+    <AuthScreenShell
+      title="Welcome Back!"
+      subtitle="Start your food saving journey today!"
+      footer={
+        <Pressable onPress={() => router.push('/(auth)/signup')}>
+          <AppText variant="body" style={styles.footerText}>
+            Don&apos;t have an account?{' '}
+            <AppText variant="body" style={styles.footerLink}>
+              Sign Up
+            </AppText>
           </AppText>
+        </Pressable>
+      }
+    >
+      <AppInput
+        label="E-mail"
+        required
+        value={email}
+        onChangeText={setEmail}
+        placeholder="Enter your email"
+        autoCapitalize="none"
+        keyboardType="email-address"
+      />
 
-          <AppText variant="body" style={styles.subtitle}>
-            Start your food saving journey today!
-          </AppText>
+      <AppInput
+        label="Password"
+        required
+        value={password}
+        onChangeText={setPassword}
+        placeholder="Enter your password"
+        secureTextEntry
+      />
 
-          <View style={styles.inputGroup}>
-            <AppText variant="body" style={styles.label}>
-              E-mail
-            </AppText>
-            <AppInput
-              value={email}
-              onChangeText={setEmail}
-              placeholder="Enter your email"
-              autoCapitalize="none"
-              keyboardType="email-address"
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <AppText variant="body" style={styles.label}>
-              Password
-            </AppText>
-            <AppInput
-              value={password}
-              onChangeText={setPassword}
-              placeholder="Enter your password"
-              secureTextEntry
-            />
-          </View>
-
-          <AppButton
-            title={submitting ? 'Logging In...' : 'Log In'}
-            onPress={handleLogin}
-            disabled={submitting}
-            style={styles.button}
-            textStyle={styles.buttonText}
-          />
-        </View>
-
-        <View style={styles.footer}>
-          <Pressable onPress={() => router.push('/(auth)/signup')}>
-            <AppText variant="body" style={styles.footerText}>
-              Don&apos;t have an account?{' '}
-              <AppText variant="body" style={styles.footerLink}>
-                Sign Up
-              </AppText>
-            </AppText>
-          </Pressable>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      <AppButton
+        title={submitting ? 'Logging In...' : 'Log In'}
+        onPress={handleLogin}
+        disabled={submitting}
+        style={styles.button}
+        textStyle={styles.buttonText}
+      />
+    </AuthScreenShell>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: COLORS.porcelain_shadow,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.porcelain_shadow,
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-  },
-  logoWrapper: {
-    alignItems: 'center',
-    marginBottom: 28,
-  },
-  logo: {
-    width: 78,
-    height: 78,
-  },
-  card: {
-    backgroundColor: COLORS.honeydew,
-    borderRadius: 22,
-    paddingHorizontal: 22,
-    paddingVertical: 28,
-    borderWidth: 2,
-    borderColor: COLORS.blue_spruce_shadow,
-    gap: 14,
-  },
-  title: {
-    textAlign: 'center',
-    color: COLORS.blue_spruce_shadow,
-    marginBottom: 4,
-  },
-  subtitle: {
-    textAlign: 'center',
-    color: COLORS.blue_spruce_shadow,
-    marginBottom: 14,
-  },
-  inputGroup: {
-    gap: 6,
-  },
-  label: {
-    color: COLORS.blue_spruce_shadow,
-  },
   button: {
     marginTop: 18,
   },
   buttonText: {
     color: COLORS.honeydew,
   },
-  footer: {
-    marginTop: 28,
-    alignItems: 'center',
-  },
   footerText: {
     color: COLORS.blue_spruce_shadow,
   },
   footerLink: {
     color: COLORS.blue_spruce_shadow,
+    fontWeight: '700',
   },
 });
