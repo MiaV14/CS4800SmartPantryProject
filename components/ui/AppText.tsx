@@ -1,5 +1,5 @@
 import { TYPOGRAPHY } from '@/constants/typography';
-import { StyleSheet, Text, TextProps } from 'react-native';
+import { Text, TextProps } from 'react-native';
 
 type AppTextProps = TextProps & {
   variant?: keyof typeof TYPOGRAPHY;
@@ -12,14 +12,8 @@ export default function AppText({
   ...props
 }: AppTextProps) {
   return (
-    <Text style={[styles.defaultText, TYPOGRAPHY[variant], style]} {...props}>
+    <Text style={[TYPOGRAPHY[variant], style]} {...props}>
       {children}
     </Text>
   );
 }
-
-const styles = StyleSheet.create({
-  defaultText: {
-    fontFamily: 'Poppins_400Regular',
-  },
-});
