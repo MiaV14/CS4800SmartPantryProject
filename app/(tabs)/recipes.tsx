@@ -117,10 +117,11 @@ export default function RecipesScreen() {
             {mockRecipes.map((recipe) => (
               <View key={recipe.id} style={styles.popularCardWrapper}>
                 <RecipeCard
+                  id={recipe.id}
                   name={recipe.name}
                   minutes={recipe.minutes}
                   matchPercent={recipe.matchPercent}
-                  variant="carousel"
+                  variant="grid"
                 />
               </View>
             ))}

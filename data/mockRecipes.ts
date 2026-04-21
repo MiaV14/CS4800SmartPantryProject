@@ -1,45 +1,102 @@
-export type RecipeItem = {
-  id: string;
-  name: string;
-  minutes: number;
-  matchPercent: number;
-  category: string;
-};
-
-export const mockRecipes: RecipeItem[] = [
+export const mockRecipes = [
   {
-    id: '1',
-    name: 'Veggie Omelet',
-    minutes: 15,
-    matchPercent: 75,
-    category: 'Breakfast',
-  },
-  {
-    id: '2',
+    id: 'chicken-rice-bowl',
     name: 'Chicken Rice Bowl',
+    image:
+      'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=1200&q=80',
     minutes: 25,
     matchPercent: 80,
-    category: 'Lunch',
+    calories: 420,
+    servings: 2,
+    ingredients: [
+      { name: 'Chicken Breast', amount: '1 lb', icon: '🍗' },
+      { name: 'Rice', amount: '2 cups cooked', icon: '🍚' },
+      { name: 'Broccoli', amount: '1 cup', icon: '🥦' },
+      { name: 'Soy Sauce', amount: '2 tbsp', icon: '🥣' },
+    ],
+    instructions: [
+      'Cook the rice according to package instructions.',
+      'Season and cook the chicken in a skillet until fully cooked.',
+      'Steam or sauté the broccoli until tender.',
+      'Slice the chicken and assemble over rice with broccoli.',
+      'Drizzle soy sauce on top and serve.',
+    ],
+    recipeUrl: 'https://example.com/chicken-rice-bowl',
+    videoUrl: 'https://youtube.com/',
   },
   {
-    id: '3',
-    name: 'Pasta Primavera',
-    minutes: 30,
-    matchPercent: 70,
-    category: 'Dinner',
-  },
-  {
-    id: '4',
-    name: 'Fruit Yogurt Parfait',
-    minutes: 10,
-    matchPercent: 65,
-    category: 'Dessert',
-  },
-  {
-    id: '5',
+    id: 'pantry-stir-fry',
     name: 'Pantry Stir Fry',
+    image:
+      'https://images.unsplash.com/photo-1512058564366-18510be2db19?auto=format&fit=crop&w=1200&q=80',
     minutes: 20,
     matchPercent: 78,
-    category: 'Pantry',
+    calories: 390,
+    servings: 2,
+    ingredients: [
+      { name: 'Noodles', amount: '8 oz', icon: '🍜' },
+      { name: 'Frozen Veggies', amount: '2 cups', icon: '🥕' },
+      { name: 'Soy Sauce', amount: '2 tbsp', icon: '🥣' },
+      { name: 'Garlic', amount: '2 cloves', icon: '🧄' },
+    ],
+    instructions: [
+      'Cook the noodles until tender and drain.',
+      'Sauté garlic in a pan for 30 seconds.',
+      'Add vegetables and cook until heated through.',
+      'Add noodles and soy sauce, then toss everything together.',
+      'Serve hot.',
+    ],
+    recipeUrl: 'https://example.com/pantry-stir-fry',
+    videoUrl: '',
+  },
+  {
+    id: 'veggie-omelet',
+    name: 'Veggie Omelet',
+    image:
+      'https://images.unsplash.com/photo-1510693206972-df098062cb71?auto=format&fit=crop&w=1200&q=80',
+    minutes: 15,
+    matchPercent: 75,
+    calories: 280,
+    servings: 1,
+    ingredients: [
+      { name: 'Eggs', amount: '3', icon: '🥚' },
+      { name: 'Spinach', amount: '1 cup', icon: '🥬' },
+      { name: 'Cheese', amount: '1/4 cup', icon: '🧀' },
+      { name: 'Tomato', amount: '1/2 cup', icon: '🍅' },
+    ],
+    instructions: [
+      'Whisk the eggs in a bowl.',
+      'Cook spinach and tomato lightly in a pan.',
+      'Pour in the eggs and cook until mostly set.',
+      'Add cheese, fold the omelet, and finish cooking.',
+      'Serve immediately.',
+    ],
+    recipeUrl: 'https://example.com/veggie-omelet',
+    videoUrl: '',
+  },
+  {
+    id: 'pasta-primavera',
+    name: 'Pasta Primavera',
+    image:
+      'https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?auto=format&fit=crop&w=1200&q=80',
+    minutes: 30,
+    matchPercent: 70,
+    calories: 510,
+    servings: 3,
+    ingredients: [
+      { name: 'Pasta', amount: '12 oz', icon: '🍝' },
+      { name: 'Bell Pepper', amount: '1', icon: '🫑' },
+      { name: 'Zucchini', amount: '1', icon: '🥒' },
+      { name: 'Parmesan', amount: '1/3 cup', icon: '🧀' },
+    ],
+    instructions: [
+      'Cook pasta until al dente and reserve some pasta water.',
+      'Sauté vegetables until just tender.',
+      'Add cooked pasta and a splash of pasta water.',
+      'Toss with parmesan and season to taste.',
+      'Serve warm.',
+    ],
+    recipeUrl: 'https://example.com/pasta-primavera',
+    videoUrl: 'https://youtube.com/',
   },
 ];

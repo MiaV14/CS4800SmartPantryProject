@@ -103,6 +103,7 @@ export default function ExpiringRecipesScreen() {
               {filteredRecipes.map((recipe) => (
                 <View key={recipe.id} style={styles.gridItem}>
                   <RecipeCard
+                    id={recipe.id}
                     name={recipe.name}
                     minutes={recipe.minutes}
                     matchPercent={recipe.matchPercent}
