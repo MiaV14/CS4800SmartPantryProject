@@ -12,32 +12,49 @@ import { mockRecipes } from '@/data/mockRecipes';
 
 const FILTER_OPTIONS = ['All', 'Quick', 'Vegetarian', 'Pasta'];
 
+function normalize(value: string) {
+  return value.toLowerCase().trim();
+}
+
 export default function ExpiringRecipesScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('All');
 
   const filteredRecipes = useMemo(() => {
+    const query = normalize(searchQuery);
+
     let results = [...mockRecipes];
 
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
+    if (query) {
+      results = results.filter((recipe) => {
+        const nameMatch = normalize(recipe.name).includes(query);
 
-      results = results.filter((recipe) =>
-        recipe.name.toLowerCase().includes(query)
-      );
+        const tagMatch =
+          recipe.tags?.some((tag: string) => normalize(tag).includes(query)) ??
+          false;
+
+        const ingredientMatch =
+          recipe.ingredients?.some((ingredient: any) =>
+            normalize(String(ingredient.name ?? '')).includes(query)
+          ) ?? false;
+
+        return nameMatch || tagMatch || ingredientMatch;
+      });
     }
 
     if (selectedFilter !== 'All') {
       results = results.filter((recipe) => {
-        const name = recipe.name.toLowerCase();
+        const tags = recipe.tags?.map((tag: string) => normalize(tag)) ?? [];
+        const category = normalize(String(recipe.category ?? ''));
+        const name = normalize(recipe.name);
 
         switch (selectedFilter) {
           case 'Quick':
-            return recipe.minutes <= 30;
+            return recipe.minutes <= 30 || tags.includes('quick');
           case 'Vegetarian':
-            return name.includes('veggie') || name.includes('vegetable');
+            return tags.includes('vegetarian') || category.includes('vegetarian');
           case 'Pasta':
-            return name.includes('pasta') || name.includes('spaghetti');
+            return tags.includes('pasta') || name.includes('pasta');
           default:
             return true;
         }
@@ -103,11 +120,11 @@ export default function ExpiringRecipesScreen() {
               {filteredRecipes.map((recipe) => (
                 <View key={recipe.id} style={styles.gridItem}>
                   <RecipeCard
-                    id={recipe.id}
                     name={recipe.name}
                     minutes={recipe.minutes}
                     matchPercent={recipe.matchPercent}
                     variant="grid"
+                    onPress={() => router.push(`/recipes/${recipe.id}` as any)}
                   />
                 </View>
               ))}

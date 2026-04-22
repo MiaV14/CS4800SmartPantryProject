@@ -1,29 +1,29 @@
-import { router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import AppText from '@/components/ui/AppText';
 import { COLORS } from '@/constants/colors';
 
 type RecipeCardProps = {
-  id: string;
   name: string;
   minutes: number;
   matchPercent: number;
   variant?: 'grid' | 'carousel';
+  onPress?: () => void;
 };
 
 export default function RecipeCard({
-  id,
   name,
   minutes,
   matchPercent,
   variant = 'grid',
+  onPress,
 }: RecipeCardProps) {
   const isGrid = variant === 'grid';
 
   return (
     <Pressable
-      onPress={() => router.push(`/recipes/${id}` as any)}
+      onPress={onPress}
+      disabled={!onPress}
       style={[styles.card, isGrid ? styles.gridCard : styles.carouselCard]}
     >
       <View style={styles.imageArea}>

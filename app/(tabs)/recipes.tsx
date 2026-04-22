@@ -1,7 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { Dimensions, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import {
+  Dimensions,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import CategoryTile from '@/components/recipes/CategoryTile';
@@ -17,6 +23,7 @@ const { width } = Dimensions.get('window');
 const POPULAR_CARD_WIDTH = width * 0.5;
 
 const CATEGORY_OPTIONS = [
+  { id: 'all', label: 'All' },
   { id: 'breakfast', label: 'Breakfast' },
   { id: 'lunch', label: 'Lunch' },
   { id: 'dinner', label: 'Dinner' },
@@ -30,13 +37,62 @@ const COLLECTIONS = [
   { id: 'favorites', label: 'Favorites', count: 0 },
 ];
 
+function normalize(value: string) {
+  return value.toLowerCase().trim();
+}
+
 export default function RecipesScreen() {
-  const [selectedCategory, setSelectedCategory] = useState('breakfast');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredPopularRecipes = useMemo(() => {
+    const query = normalize(searchQuery);
+
+    let results = [...mockRecipes];
+
+    if (query) {
+      results = results.filter((recipe) => {
+        const nameMatch = normalize(recipe.name).includes(query);
+
+        const tagMatch =
+          recipe.tags?.some((tag: string) => normalize(tag).includes(query)) ??
+          false;
+
+        const ingredientMatch =
+          recipe.ingredients?.some((ingredient: any) =>
+            normalize(String(ingredient.name ?? '')).includes(query)
+          ) ?? false;
+
+        return nameMatch || tagMatch || ingredientMatch;
+      });
+    }
+
+    if (selectedCategory !== 'all') {
+      if (selectedCategory === 'quick') {
+        results = results.filter((recipe) => recipe.minutes <= 30);
+      } else {
+        results = results.filter((recipe) => {
+          const categoryValue = normalize(String(recipe.category ?? ''));
+          const tags = recipe.tags?.map((tag: string) => normalize(tag)) ?? [];
+
+          return (
+            categoryValue === selectedCategory || tags.includes(selectedCategory)
+          );
+        });
+      }
+    }
+
+    return results;
+  }, [searchQuery, selectedCategory]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.topBar}>
-        <SearchBar placeholder="Search recipes" />
+        <SearchBar
+          placeholder="Search recipes"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
       </View>
 
       <ScrollView
@@ -107,24 +163,35 @@ export default function RecipesScreen() {
         </View>
 
         <View style={styles.section}>
-          <AppText variant="sectionTitle">Popular</AppText>
+          <AppText variant="sectionTitle">
+            {searchQuery.trim() ? 'Matching Recipes' : 'Popular'}
+          </AppText>
 
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.popularRow}
           >
-            {mockRecipes.map((recipe) => (
-              <View key={recipe.id} style={styles.popularCardWrapper}>
-                <RecipeCard
-                  id={recipe.id}
-                  name={recipe.name}
-                  minutes={recipe.minutes}
-                  matchPercent={recipe.matchPercent}
-                  variant="grid"
-                />
+            {filteredPopularRecipes.length > 0 ? (
+              filteredPopularRecipes.map((recipe) => (
+                <View key={recipe.id} style={styles.popularCardWrapper}>
+                  <RecipeCard
+                    name={recipe.name}
+                    minutes={recipe.minutes}
+                    matchPercent={recipe.matchPercent}
+                    variant="carousel"
+                    onPress={() => router.push(`/recipes/${recipe.id}` as any)}
+                  />
+                </View>
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <AppText variant="cardTitle">No matching recipes found</AppText>
+                <AppText variant="caption" style={styles.emptyText}>
+                  Try searching by recipe name, ingredient, or tag.
+                </AppText>
               </View>
-            ))}
+            )}
           </ScrollView>
         </View>
       </ScrollView>
@@ -198,5 +265,20 @@ const styles = StyleSheet.create({
   },
   popularCardWrapper: {
     width: POPULAR_CARD_WIDTH,
+  },
+  emptyState: {
+    width: 260,
+    backgroundColor: COLORS.porcelain,
+    borderRadius: 18,
+    padding: 18,
+    gap: 6,
+    borderTopWidth: 2,
+    borderLeftWidth: 2,
+    borderRightWidth: 3,
+    borderBottomWidth: 3,
+    borderColor: COLORS.honeydew_shadow,
+  },
+  emptyText: {
+    color: COLORS.input_text,
   },
 });
