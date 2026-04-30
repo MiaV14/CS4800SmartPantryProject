@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import ItemFormModal, { ItemFormValues } from '@/components/modals/ItemFormModal';
@@ -46,25 +46,28 @@ const EMPTY_ITEM_FORM: ItemFormValues = {
 export default function StorageScreen() {
   const router = useRouter();
   const { storageId } = useLocalSearchParams<{ storageId: string }>();
-  const { items, addItem, updateItem, deleteItem } = useFoodItems();
+  const { items, isLoading, addItem, updateItem, deleteItem } = useFoodItems();
 
   const [selectedFilter, setSelectedFilter] = useState('All');
   const [selectedItem, setSelectedItem] = useState<FoodItem | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const storageTitle = STORAGE_LABELS[storageId] ?? String(storageId);
-  const lockedStorageLocation = STORAGE_LABELS[storageId] ?? 'Pantry';
+  const resolvedStorageId = String(storageId ?? 'pantry');
+  const storageTitle = STORAGE_LABELS[resolvedStorageId] ?? resolvedStorageId;
+  const lockedStorageLocation = STORAGE_LABELS[resolvedStorageId] ?? 'Pantry';
 
   const storageItems = useMemo(() => {
-    return items.filter((item) => item.storageId === storageId);
-  }, [items, storageId]);
+    return items.filter((item) => item.storageId === resolvedStorageId);
+  }, [items, resolvedStorageId]);
 
   const filterOptions = useMemo(() => {
     const counts: Record<string, number> = {};
 
     for (const item of storageItems) {
-      counts[item.category] = (counts[item.category] ?? 0) + 1;
+      const category = item.category?.trim() || 'Other';
+      counts[category] = (counts[category] ?? 0) + 1;
     }
 
     const sortedCategories = Object.keys(counts)
@@ -76,7 +79,17 @@ export default function StorageScreen() {
           return countDifference;
         }
 
-        return CATEGORY_ORDER.indexOf(a) - CATEGORY_ORDER.indexOf(b);
+        const aIndex = CATEGORY_ORDER.indexOf(a);
+        const bIndex = CATEGORY_ORDER.indexOf(b);
+
+        if (aIndex === -1 && bIndex === -1) {
+          return a.localeCompare(b);
+        }
+
+        if (aIndex === -1) return 1;
+        if (bIndex === -1) return -1;
+
+        return aIndex - bIndex;
       });
 
     return ['All', ...sortedCategories];
@@ -93,7 +106,10 @@ export default function StorageScreen() {
       return storageItems;
     }
 
-    return storageItems.filter((item) => item.category === selectedFilter);
+    return storageItems.filter((item) => {
+      const category = item.category?.trim() || 'Other';
+      return category === selectedFilter;
+    });
   }, [storageItems, selectedFilter]);
 
   const editInitialValues: ItemFormValues = selectedItem
@@ -102,7 +118,7 @@ export default function StorageScreen() {
         quantity: selectedItem.quantity,
         unit: selectedItem.unit ?? '',
         expirationDate: selectedItem.expirationDate ?? '',
-        category: selectedItem.category,
+        category: selectedItem.category ?? '',
         storageLocation: STORAGE_LABELS[selectedItem.storageId] ?? '',
       }
     : EMPTY_ITEM_FORM;
@@ -117,24 +133,44 @@ export default function StorageScreen() {
     setSelectedItem(null);
   };
 
-  const handleSaveItem = (values: ItemFormValues) => {
+  const handleSaveItem = async (values: ItemFormValues) => {
     if (!selectedItem) return;
 
-    updateItem({
-      id: selectedItem.id,
-      updates: values,
-    });
+    try {
+      setSubmitting(true);
 
-    handleCloseEditModal();
+      await updateItem({
+        id: selectedItem.id,
+        updates: values,
+      });
+
+      handleCloseEditModal();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to update item.';
+      Alert.alert('Update failed', message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const handleAddItemToStorage = (values: ItemFormValues) => {
-    addItem({
-      ...values,
-      storageLocation: lockedStorageLocation,
-    });
+  const handleAddItemToStorage = async (values: ItemFormValues) => {
+    try {
+      setSubmitting(true);
 
-    setShowAddModal(false);
+      await addItem({
+        ...values,
+        storageLocation: lockedStorageLocation,
+      });
+
+      setShowAddModal(false);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to add item.';
+      Alert.alert('Add failed', message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleDeleteItem = () => {
@@ -148,9 +184,18 @@ export default function StorageScreen() {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => {
-            deleteItem(selectedItem.id);
-            handleCloseEditModal();
+          onPress: async () => {
+            try {
+              setSubmitting(true);
+              await deleteItem(selectedItem.id);
+              handleCloseEditModal();
+            } catch (error) {
+              const message =
+                error instanceof Error ? error.message : 'Failed to delete item.';
+              Alert.alert('Delete failed', message);
+            } finally {
+              setSubmitting(false);
+            }
           },
         },
       ]
@@ -169,48 +214,57 @@ export default function StorageScreen() {
         </View>
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      {isLoading ? (
+        <View style={styles.loadingState}>
+          <ActivityIndicator size="large" color={COLORS.blue_spruce} />
+          <AppText variant="caption" style={styles.loadingText}>
+            Loading items...
+          </AppText>
+        </View>
+      ) : (
         <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.chipRow}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
         >
-          {filterOptions.map((option) => (
-            <FilterChip
-              key={option}
-              label={option}
-              selected={selectedFilter === option}
-              onPress={() => setSelectedFilter(option)}
-            />
-          ))}
-        </ScrollView>
-
-        {filteredItems.length > 0 ? (
-          <View style={styles.grid}>
-            {filteredItems.map((item) => (
-              <FoodItemCard
-                key={item.id}
-                name={item.name}
-                quantity={item.quantity}
-                unit={item.unit}
-                category={item.category}
-                expirationDate={item.expirationDate}
-                onPress={() => handleOpenEditModal(item)}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.chipRow}
+          >
+            {filterOptions.map((option) => (
+              <FilterChip
+                key={option}
+                label={option}
+                selected={selectedFilter === option}
+                onPress={() => setSelectedFilter(option)}
               />
             ))}
-          </View>
-        ) : (
-          <View style={styles.emptyState}>
-            <AppText variant="cardTitle">No items found</AppText>
-            <AppText variant="caption">
-              There are no items in this storage for the selected filter.
-            </AppText>
-          </View>
-        )}
-      </ScrollView>
+          </ScrollView>
+
+          {filteredItems.length > 0 ? (
+            <View style={styles.grid}>
+              {filteredItems.map((item) => (
+                <FoodItemCard
+                  key={item.id}
+                  name={item.name}
+                  quantity={item.quantity}
+                  unit={item.unit}
+                  category={item.category || 'Other'}
+                  expirationDate={item.expirationDate}
+                  onPress={() => handleOpenEditModal(item)}
+                />
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <AppText variant="cardTitle">No items found</AppText>
+              <AppText variant="caption" style={styles.emptyStateText}>
+                Add your first item to {storageTitle}.
+              </AppText>
+            </View>
+          )}
+        </ScrollView>
+      )}
 
       <FloatingAddButton onPress={() => setShowAddModal(true)} />
 
@@ -275,11 +329,25 @@ const styles = StyleSheet.create({
     gap: 12,
     justifyContent: 'flex-start',
   },
+  loadingState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 24,
+  },
+  loadingText: {
+    color: COLORS.input_text,
+  },
   emptyState: {
     backgroundColor: COLORS.porcelain,
     borderRadius: 16,
     padding: 20,
     alignItems: 'center',
     gap: 8,
+  },
+  emptyStateText: {
+    color: COLORS.input_text,
+    textAlign: 'center',
   },
 });

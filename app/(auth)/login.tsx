@@ -6,6 +6,7 @@ import AuthScreenShell from '@/components/auth/AuthScreenShell';
 import AppButton from '@/components/ui/AppButton';
 import AppInput from '@/components/ui/AppInput';
 import AppText from '@/components/ui/AppText';
+import PasswordInput from '@/components/ui/PasswordInput';
 import { COLORS } from '@/constants/colors';
 import { useAuth } from '@/context/AuthContext';
 
@@ -27,6 +28,7 @@ export default function LoginScreen() {
     try {
       setSubmitting(true);
       await login(trimmedEmail, password);
+      router.replace('/(tabs)');
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Something went wrong.';
@@ -61,13 +63,12 @@ export default function LoginScreen() {
         keyboardType="email-address"
       />
 
-      <AppInput
+      <PasswordInput
         label="Password"
         required
         value={password}
         onChangeText={setPassword}
         placeholder="Enter your password"
-        secureTextEntry
       />
 
       <AppButton

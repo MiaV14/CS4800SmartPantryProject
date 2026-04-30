@@ -69,39 +69,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signup = async (email: string, password: string) => {
-  const trimmedEmail = email.trim();
+    const trimmedEmail = email.trim();
 
-  if (!trimmedEmail || !password.trim()) {
-    throw new Error('Email and password are required.');
-  }
+    if (!trimmedEmail || !password.trim()) {
+      throw new Error('Email and password are required.');
+    }
 
-  const { data, error } = await supabase.auth.signUp({
-    email: trimmedEmail,
-    password,
-  });
+    const { error } = await supabase.auth.signUp({
+      email: trimmedEmail,
+      password,
+    });
 
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  const newUser = data.user;
-
-  if (!newUser) {
-    throw new Error('User account was created, but no user data was returned.');
-  }
-
-  const { error: profileError } = await supabase.from('profiles').upsert({
-    id: newUser.id,
-    first_name: null,
-    last_name: null,
-    dietary_preferences: null,
-    allergies: null,
-  });
-
-  if (profileError) {
-    throw new Error(profileError.message);
-  }
-};
+    if (error) {
+      throw new Error(error.message);
+    }
+  };
 
   const logout = async () => {
     const { error } = await supabase.auth.signOut();

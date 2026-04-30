@@ -1,6 +1,8 @@
-import { FoodItem, MOCK_FOOD_ITEMS } from '@/data/mockFoodItems';
+import { useAuth } from '@/context/AuthContext';
+import { FoodItem } from '@/data/mockFoodItems';
+import { supabase } from '@/lib/supabase';
 import { isExpiringSoon } from '@/utils/expiry';
-import React, { createContext, useContext, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 type AddItemInput = Omit<FoodItem, 'id' | 'storageId' | 'isExpiring'> & {
   storageLocation: string;
@@ -15,9 +17,11 @@ type UpdateItemInput = {
 
 type FoodItemsContextType = {
   items: FoodItem[];
-  addItem: (item: AddItemInput) => void;
-  updateItem: (payload: UpdateItemInput) => void;
-  deleteItem: (id: string) => void;
+  isLoading: boolean;
+  addItem: (item: AddItemInput) => Promise<void>;
+  updateItem: (payload: UpdateItemInput) => Promise<void>;
+  deleteItem: (id: string) => Promise<void>;
+  refreshItems: () => Promise<void>;
 };
 
 const FoodItemsContext = createContext<FoodItemsContextType | undefined>(
@@ -31,12 +35,39 @@ const STORAGE_ID_BY_LABEL: Record<string, string> = {
   Seasonings: 'seasonings',
 };
 
-function getstorageIdFromLabel(storageLocation: string): string {
+function getStorageIdFromLabel(storageLocation: string): string {
   return STORAGE_ID_BY_LABEL[storageLocation] ?? 'pantry';
 }
 
-function createItemId(): string {
-  return Date.now().toString();
+function getStorageLabelFromId(storageId: string): string {
+  const entry = Object.entries(STORAGE_ID_BY_LABEL).find(
+    ([, value]) => value === storageId
+  );
+
+  return entry?.[0] ?? 'Pantry';
+}
+
+function mapRowToFoodItem(row: {
+  id: string;
+  name: string;
+  quantity: number;
+  unit: string;
+  expiration_date: string | null;
+  category: string | null;
+  storage_id: string;
+}): FoodItem {
+  const expirationDate = row.expiration_date ?? '';
+
+  return {
+    id: row.id,
+    name: row.name,
+    quantity: row.quantity,
+    unit: row.unit,
+    expirationDate,
+    category: row.category ?? '',
+    storageId: row.storage_id,
+    isExpiring: expirationDate ? isExpiringSoon(expirationDate) : false,
+  };
 }
 
 export function FoodItemsProvider({
@@ -44,58 +75,114 @@ export function FoodItemsProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [items, setItems] = useState<FoodItem[]>(MOCK_FOOD_ITEMS);
+  const { user } = useAuth();
+  const [items, setItems] = useState<FoodItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const addItem = (item: AddItemInput) => {
-    const storageId = getstorageIdFromLabel(item.storageLocation);
+  const refreshItems = async () => {
+    if (!user) {
+      setItems([]);
+      setIsLoading(false);
+      return;
+    }
 
-    const newItem: FoodItem = {
-      id: createItemId(),
+    setIsLoading(true);
+
+    const { data, error } = await supabase
+      .from('food_items')
+      .select('id, name, quantity, unit, expiration_date, category, storage_id')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching food items:', error.message);
+      setItems([]);
+      setIsLoading(false);
+      return;
+    }
+
+    const mappedItems = (data ?? []).map(mapRowToFoodItem);
+    setItems(mappedItems);
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    refreshItems();
+  }, [user]);
+
+  const addItem = async (item: AddItemInput) => {
+    if (!user) {
+      throw new Error('You must be logged in to add items.');
+    }
+
+    const storageId = getStorageIdFromLabel(item.storageLocation);
+
+    const { error } = await supabase.from('food_items').insert({
+      user_id: user.id,
       name: item.name,
       quantity: item.quantity,
       unit: item.unit,
-      expirationDate: item.expirationDate,
-      category: item.category,
-      storageId,
-      isExpiring: isExpiringSoon(item.expirationDate),
-    };
+      expiration_date: item.expirationDate || null,
+      category: item.category || null,
+      storage_id: storageId,
+    });
 
-    setItems((prev) => [newItem, ...prev]);
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    await refreshItems();
   };
 
-  const updateItem = ({ id, updates }: UpdateItemInput) => {
-    const storageId = getstorageIdFromLabel(updates.storageLocation);
+  const updateItem = async ({ id, updates }: UpdateItemInput) => {
+    if (!user) {
+      throw new Error('You must be logged in to update items.');
+    }
 
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              name: updates.name,
-              quantity: updates.quantity,
-              unit: updates.unit,
-              expirationDate: updates.expirationDate,
-              category: updates.category,
-              storageId,
-              isExpiring: isExpiringSoon(updates.expirationDate),
-            }
-          : item
-      )
-    );
+    const storageId = getStorageIdFromLabel(updates.storageLocation);
+
+    const { error } = await supabase
+      .from('food_items')
+      .update({
+        name: updates.name,
+        quantity: updates.quantity,
+        unit: updates.unit,
+        expiration_date: updates.expirationDate || null,
+        category: updates.category || null,
+        storage_id: storageId,
+      })
+      .eq('id', id);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    await refreshItems();
   };
 
-  const deleteItem = (id: string) => {
-    setItems((prev) => prev.filter((item) => item.id !== id));
+  const deleteItem = async (id: string) => {
+    if (!user) {
+      throw new Error('You must be logged in to delete items.');
+    }
+
+    const { error } = await supabase.from('food_items').delete().eq('id', id);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    await refreshItems();
   };
 
   const value = useMemo(
     () => ({
       items,
+      isLoading,
       addItem,
       updateItem,
       deleteItem,
+      refreshItems,
     }),
-    [items]
+    [items, isLoading]
   );
 
   return (
@@ -114,3 +201,6 @@ export function useFoodItems() {
 
   return context;
 }
+
+export { getStorageLabelFromId };
+

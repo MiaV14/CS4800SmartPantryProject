@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import AppText from '@/components/ui/AppText';
@@ -44,7 +44,7 @@ function normalize(value: string) {
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { items } = useFoodItems();
+  const { items, isLoading } = useFoodItems();
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -119,130 +119,140 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {isSearching ? (
-          <View style={styles.resultsSection}>
-            <AppText variant="sectionTitle">Matching Items</AppText>
+      {isLoading ? (
+        <View style={styles.loadingState}>
+          <ActivityIndicator size="large" color={COLORS.blue_spruce} />
+          <AppText variant="caption" style={styles.loadingText}>
+            Loading pantry...
+          </AppText>
+        </View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {isSearching ? (
+            <View style={styles.resultsSection}>
+              <AppText variant="sectionTitle">Matching Items</AppText>
 
-            {filteredItems.length > 0 ? (
-              <View style={styles.resultsList}>
-                {filteredItems.map((item) => {
-                  const status = getExpiryStatus(item.expirationDate);
-                  const storageName =
-                    STORAGE_NAME_BY_ID[item.storageId] ?? item.storageId;
+              {filteredItems.length > 0 ? (
+                <View style={styles.resultsList}>
+                  {filteredItems.map((item) => {
+                    const status = getExpiryStatus(item.expirationDate);
+                    const storageName =
+                      STORAGE_NAME_BY_ID[item.storageId] ?? item.storageId;
 
-                  return (
-                    <Pressable
-                      key={item.id}
-                      style={styles.resultCard}
+                    return (
+                      <Pressable
+                        key={item.id}
+                        style={styles.resultCard}
+                        onPress={() =>
+                          router.push({
+                            pathname: '/storage/[storageId]',
+                            params: { storageId: item.storageId },
+                          })
+                        }
+                      >
+                        <View style={styles.resultTopRow}>
+                          <AppText variant="cardTitle" style={styles.resultTitle}>
+                            {item.name}
+                          </AppText>
+
+                          <View
+                            style={[
+                              styles.statusPill,
+                              status === 'expired'
+                                ? styles.expiredPill
+                                : status === 'expiring'
+                                ? styles.expiringPill
+                                : styles.freshPill,
+                            ]}
+                          >
+                            <AppText
+                              variant="caption"
+                              style={[
+                                styles.statusText,
+                                status === 'expired'
+                                  ? styles.expiredText
+                                  : status === 'expiring'
+                                  ? styles.expiringText
+                                  : styles.freshText,
+                              ]}
+                            >
+                              {status === 'expired'
+                                ? 'Expired'
+                                : status === 'expiring'
+                                ? 'Expiring'
+                                : 'Fresh'}
+                            </AppText>
+                          </View>
+                        </View>
+
+                        <AppText variant="caption" style={styles.resultMeta}>
+                          {item.quantity} {item.unit} • {item.category || 'Other'} •{' '}
+                          {storageName}
+                        </AppText>
+
+                        <AppText variant="caption" style={styles.resultMeta}>
+                          Expires: {item.expirationDate || 'No date'}
+                        </AppText>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : (
+                <View style={styles.emptySearchState}>
+                  <AppText variant="cardTitle">No matching items found</AppText>
+                  <AppText variant="caption" style={styles.emptySearchText}>
+                    Try searching by item name, category, or storage location.
+                  </AppText>
+                </View>
+              )}
+            </View>
+          ) : (
+            <>
+              <View style={styles.banner}>
+                <AppText variant="heroGreeting" style={styles.bannerGreeting}>
+                  Good morning, {firstName}!
+                </AppText>
+
+                <AppText variant="heroTitle">What’s for Breakfast?</AppText>
+              </View>
+
+              <View style={styles.overviewSection}>
+                <AppText variant="sectionTitle">Overview</AppText>
+
+                <View style={styles.overviewRow}>
+                  <OverviewCard label="Total" count={totalItemCount} />
+                  <OverviewCard label="Expiring Soon" count={expiringSoonCount} />
+                  <OverviewCard label="Expired" count={expiredCount} />
+                </View>
+              </View>
+
+              <View style={styles.storageSection}>
+                <AppText variant="sectionTitle">Storage</AppText>
+
+                <View style={styles.storageContainer}>
+                  {storageSummaries.map((storage) => (
+                    <StorageCard
+                      key={storage.id}
+                      name={storage.name}
+                      itemCount={storage.itemCount}
+                      expiringCount={storage.expiringCount}
                       onPress={() =>
                         router.push({
                           pathname: '/storage/[storageId]',
-                          params: { storageId: item.storageId },
+                          params: { storageId: storage.id },
                         })
                       }
-                    >
-                      <View style={styles.resultTopRow}>
-                        <AppText variant="cardTitle" style={styles.resultTitle}>
-                          {item.name}
-                        </AppText>
-
-                        <View
-                          style={[
-                            styles.statusPill,
-                            status === 'expired'
-                              ? styles.expiredPill
-                              : status === 'expiring'
-                              ? styles.expiringPill
-                              : styles.freshPill,
-                          ]}
-                        >
-                          <AppText
-                            variant="caption"
-                            style={[
-                              styles.statusText,
-                              status === 'expired'
-                                ? styles.expiredText
-                                : status === 'expiring'
-                                ? styles.expiringText
-                                : styles.freshText,
-                            ]}
-                          >
-                            {status === 'expired'
-                              ? 'Expired'
-                              : status === 'expiring'
-                              ? 'Expiring'
-                              : 'Fresh'}
-                          </AppText>
-                        </View>
-                      </View>
-
-                      <AppText variant="caption" style={styles.resultMeta}>
-                        {item.quantity} {item.unit} • {item.category} • {storageName}
-                      </AppText>
-
-                      <AppText variant="caption" style={styles.resultMeta}>
-                        Expires: {item.expirationDate}
-                      </AppText>
-                    </Pressable>
-                  );
-                })}
+                    />
+                  ))}
+                </View>
               </View>
-            ) : (
-              <View style={styles.emptySearchState}>
-                <AppText variant="cardTitle">No matching items found</AppText>
-                <AppText variant="caption" style={styles.emptySearchText}>
-                  Try searching by item name, category, or storage location.
-                </AppText>
-              </View>
-            )}
-          </View>
-        ) : (
-          <>
-            <View style={styles.banner}>
-              <AppText variant="heroGreeting" style={styles.bannerGreeting}>
-                Good morning, {firstName}!
-              </AppText>
-
-              <AppText variant="heroTitle">What’s for Breakfast?</AppText>
-            </View>
-
-            <View style={styles.overviewSection}>
-              <AppText variant="sectionTitle">Overview</AppText>
-
-              <View style={styles.overviewRow}>
-                <OverviewCard label="Total" count={totalItemCount} />
-                <OverviewCard label="Expiring Soon" count={expiringSoonCount} />
-                <OverviewCard label="Expired" count={expiredCount} />
-              </View>
-            </View>
-
-            <View style={styles.storageSection}>
-              <AppText variant="sectionTitle">Storage</AppText>
-
-              <View style={styles.storageContainer}>
-                {storageSummaries.map((storage) => (
-                  <StorageCard
-                    key={storage.id}
-                    name={storage.name}
-                    itemCount={storage.itemCount}
-                    expiringCount={storage.expiringCount}
-                    onPress={() =>
-                      router.push({
-                        pathname: '/storage/[storageId]',
-                        params: { storageId: storage.id },
-                      })
-                    }
-                  />
-                ))}
-              </View>
-            </View>
-          </>
-        )}
-      </ScrollView>
+            </>
+          )}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -259,6 +269,16 @@ const styles = StyleSheet.create({
   },
   searchWrapper: {
     width: '100%',
+  },
+  loadingState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 24,
+  },
+  loadingText: {
+    color: COLORS.input_text,
   },
   scrollContent: {
     padding: 16,
