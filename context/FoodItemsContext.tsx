@@ -1,18 +1,33 @@
 import { useAuth } from '@/context/AuthContext';
-import { FoodItem } from '@/data/mockFoodItems';
 import { supabase } from '@/lib/supabase';
 import { isExpiringSoon } from '@/utils/expiry';
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
-type AddItemInput = Omit<FoodItem, 'id' | 'storageId' | 'isExpiring'> & {
+export type FoodItem = {
+  id: string;
+  name: string;
+  quantity: number;
+  unit: string;
+  expirationDate: string;
+  category: string;
+  storageId: string;
+  isExpiring: boolean;
+  trackingMode: 'count' | 'amount' | 'fill';
+};
+
+type AddItemInput = {
+  name: string;
+  quantity: string;
+  unit: string;
+  expirationDate: string;
+  category: string;
   storageLocation: string;
+  trackingMode: 'count' | 'amount' | 'fill';
 };
 
 type UpdateItemInput = {
   id: string;
-  updates: Omit<FoodItem, 'id' | 'storageId' | 'isExpiring'> & {
-    storageLocation: string;
-  };
+  updates: AddItemInput;
 };
 
 type FoodItemsContextType = {
@@ -21,7 +36,6 @@ type FoodItemsContextType = {
   addItem: (item: AddItemInput) => Promise<void>;
   updateItem: (payload: UpdateItemInput) => Promise<void>;
   deleteItem: (id: string) => Promise<void>;
-  refreshItems: () => Promise<void>;
 };
 
 const FoodItemsContext = createContext<FoodItemsContextType | undefined>(
@@ -35,27 +49,11 @@ const STORAGE_ID_BY_LABEL: Record<string, string> = {
   Seasonings: 'seasonings',
 };
 
-function getStorageIdFromLabel(storageLocation: string): string {
-  return STORAGE_ID_BY_LABEL[storageLocation] ?? 'pantry';
+function getStorageIdFromLabel(label: string) {
+  return STORAGE_ID_BY_LABEL[label] ?? 'pantry';
 }
 
-function getStorageLabelFromId(storageId: string): string {
-  const entry = Object.entries(STORAGE_ID_BY_LABEL).find(
-    ([, value]) => value === storageId
-  );
-
-  return entry?.[0] ?? 'Pantry';
-}
-
-function mapRowToFoodItem(row: {
-  id: string;
-  name: string;
-  quantity: number;
-  unit: string;
-  expiration_date: string | null;
-  category: string | null;
-  storage_id: string;
-}): FoodItem {
+function mapRowToItem(row: any): FoodItem {
   const expirationDate = row.expiration_date ?? '';
 
   return {
@@ -66,111 +64,79 @@ function mapRowToFoodItem(row: {
     expirationDate,
     category: row.category ?? '',
     storageId: row.storage_id,
+    trackingMode: row.tracking_mode ?? 'count',
     isExpiring: expirationDate ? isExpiringSoon(expirationDate) : false,
   };
 }
 
-export function FoodItemsProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export function FoodItemsProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [items, setItems] = useState<FoodItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const refreshItems = async () => {
+  const fetchItems = async () => {
     if (!user) {
       setItems([]);
       setIsLoading(false);
       return;
     }
 
-    setIsLoading(true);
-
     const { data, error } = await supabase
       .from('food_items')
-      .select('id, name, quantity, unit, expiration_date, category, storage_id')
+      .select('*')
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching food items:', error.message);
-      setItems([]);
+      console.error(error.message);
       setIsLoading(false);
       return;
     }
 
-    const mappedItems = (data ?? []).map(mapRowToFoodItem);
-    setItems(mappedItems);
+    setItems((data ?? []).map(mapRowToItem));
     setIsLoading(false);
   };
 
   useEffect(() => {
-    refreshItems();
+    fetchItems();
   }, [user]);
 
   const addItem = async (item: AddItemInput) => {
-    if (!user) {
-      throw new Error('You must be logged in to add items.');
-    }
+    if (!user) throw new Error('Not logged in');
 
-    const storageId = getStorageIdFromLabel(item.storageLocation);
-
-    const { error } = await supabase.from('food_items').insert({
+    await supabase.from('food_items').insert({
       user_id: user.id,
       name: item.name,
-      quantity: item.quantity,
+      quantity: Number(item.quantity),
       unit: item.unit,
       expiration_date: item.expirationDate || null,
       category: item.category || null,
-      storage_id: storageId,
+      storage_id: getStorageIdFromLabel(item.storageLocation),
+      tracking_mode: item.trackingMode,
     });
 
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    await refreshItems();
+    await fetchItems();
   };
 
   const updateItem = async ({ id, updates }: UpdateItemInput) => {
-    if (!user) {
-      throw new Error('You must be logged in to update items.');
-    }
-
-    const storageId = getStorageIdFromLabel(updates.storageLocation);
-
-    const { error } = await supabase
+    await supabase
       .from('food_items')
       .update({
         name: updates.name,
-        quantity: updates.quantity,
+        quantity: Number(updates.quantity),
         unit: updates.unit,
         expiration_date: updates.expirationDate || null,
         category: updates.category || null,
-        storage_id: storageId,
+        storage_id: getStorageIdFromLabel(updates.storageLocation),
+        tracking_mode: updates.trackingMode,
       })
       .eq('id', id);
 
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    await refreshItems();
+    await fetchItems();
   };
 
   const deleteItem = async (id: string) => {
-    if (!user) {
-      throw new Error('You must be logged in to delete items.');
-    }
-
-    const { error } = await supabase.from('food_items').delete().eq('id', id);
-
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    await refreshItems();
+    await supabase.from('food_items').delete().eq('id', id);
+    await fetchItems();
   };
 
   const value = useMemo(
@@ -180,7 +146,6 @@ export function FoodItemsProvider({
       addItem,
       updateItem,
       deleteItem,
-      refreshItems,
     }),
     [items, isLoading]
   );
@@ -194,13 +159,8 @@ export function FoodItemsProvider({
 
 export function useFoodItems() {
   const context = useContext(FoodItemsContext);
-
   if (!context) {
-    throw new Error('useFoodItems must be used within a FoodItemsProvider');
+    throw new Error('useFoodItems must be used within FoodItemsProvider');
   }
-
   return context;
 }
-
-export { getStorageLabelFromId };
-

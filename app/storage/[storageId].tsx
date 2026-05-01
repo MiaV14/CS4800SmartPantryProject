@@ -34,13 +34,14 @@ const STORAGE_LABELS: Record<string, string> = {
   seasonings: 'Seasonings',
 };
 
-const EMPTY_ITEM_FORM: ItemFormValues = {
+const EMPTY_ITEM_FORM = {
   name: '',
   quantity: '',
   unit: '',
   expirationDate: '',
   category: '',
   storageLocation: '',
+  trackingMode: 'count',
 };
 
 export default function StorageScreen() {
@@ -115,11 +116,12 @@ export default function StorageScreen() {
   const editInitialValues: ItemFormValues = selectedItem
     ? {
         name: selectedItem.name,
-        quantity: selectedItem.quantity,
+        quantity: String(selectedItem.quantity),
         unit: selectedItem.unit ?? '',
         expirationDate: selectedItem.expirationDate ?? '',
         category: selectedItem.category ?? '',
         storageLocation: STORAGE_LABELS[selectedItem.storageId] ?? '',
+        trackingMode: selectedItem.trackingMode ?? 'count',
       }
     : EMPTY_ITEM_FORM;
 

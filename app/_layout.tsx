@@ -1,3 +1,5 @@
+// APP _layout.tsx
+import { AddItemDraftProvider } from '@/context/AddItemDraftContext';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { FoodItemsProvider } from '@/context/FoodItemsContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -44,6 +46,7 @@ function RootNavigator() {
       <Stack.Protected guard={!!user}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="storage/[storageId]" />
+        <Stack.Screen name="scan" />
       </Stack.Protected>
     </Stack>
   );
@@ -72,10 +75,12 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <FoodItemsProvider>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <RootNavigator />
-          <StatusBar style="auto" />
-        </ThemeProvider>
+        <AddItemDraftProvider>
+          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+            <RootNavigator />
+            <StatusBar style="auto" />
+          </ThemeProvider>
+        </AddItemDraftProvider>
       </FoodItemsProvider>
     </AuthProvider>
   );

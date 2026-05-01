@@ -1,8 +1,11 @@
+// (tabs) _layout.tsx
+
 import { COLORS } from '@/constants/colors';
+import { useAddItemDraft } from '@/context/AddItemDraftContext';
 import { useFoodItems } from '@/context/FoodItemsContext';
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
-import React, { useState } from 'react';
+import { Tabs, router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 
 import BottomSheetModal from '@/components/modals/BottomSheetModal';
 import ItemFormModal, { ItemFormValues } from '@/components/modals/ItemFormModal';
@@ -10,33 +13,62 @@ import AddTabButton from '@/components/ui/AddTabButton';
 import AppButton from '@/components/ui/AppButton';
 import AppText from '@/components/ui/AppText';
 
-const EMPTY_ITEM_FORM: ItemFormValues = {
+const EMPTY_ITEM_FORM = {
   name: '',
   quantity: '',
   unit: '',
   expirationDate: '',
   category: '',
   storageLocation: '',
+  trackingMode: 'count',
 };
 
 export default function TabLayout() {
   const { addItem } = useFoodItems();
+  const { draft, clearDraft } = useAddItemDraft();
 
   const [showChoiceModal, setShowChoiceModal] = useState(false);
   const [showAddFormModal, setShowAddFormModal] = useState(false);
+
+  useEffect(() => {
+    if (draft) {
+      setShowAddFormModal(true);
+    }
+  }, [draft]);
 
   const closeChoiceModal = () => {
     setShowChoiceModal(false);
   };
 
+  const closeAddFormModal = () => {
+    setShowAddFormModal(false);
+    clearDraft();
+  };
+
   const goToManualForm = () => {
     setShowChoiceModal(false);
+    clearDraft();
     setShowAddFormModal(true);
   };
 
-  const handleAddItem = (values: ItemFormValues) => {
-    addItem(values);
-    setShowAddFormModal(false);
+  const goToBarcodeScan = () => {
+    setShowChoiceModal(false);
+    router.push('/scan/barcode');
+  };
+
+  const goToReceiptScan = () => {
+    setShowChoiceModal(false);
+    router.push('/scan/receipt');
+  };
+
+  const handleAddItem = async (values: ItemFormValues) => {
+    try {
+      await addItem(values);
+      setShowAddFormModal(false);
+      clearDraft();
+    } catch (error) {
+      console.error('Failed to add item:', error);
+    }
   };
 
   return (
@@ -80,7 +112,7 @@ export default function TabLayout() {
           name="add"
           options={{
             title: '',
-            tabBarLabel: () => null, 
+            tabBarLabel: () => null,
             tabBarIcon: () => null,
             tabBarButton: () => (
               <AddTabButton onPress={() => setShowChoiceModal(true)} />
@@ -115,8 +147,11 @@ export default function TabLayout() {
       </Tabs>
 
       <BottomSheetModal visible={showChoiceModal} onClose={closeChoiceModal}>
-        <React.Fragment>
-          <AppText variant="sectionTitle" style={{ textAlign: 'center', marginBottom: 4 }}>
+        <>
+          <AppText
+            variant="sectionTitle"
+            style={{ textAlign: 'center', marginBottom: 4 }}
+          >
             Add Item
           </AppText>
 
@@ -128,23 +163,23 @@ export default function TabLayout() {
 
           <AppButton
             title="Scan Receipt"
-            onPress={() => {}}
+            onPress={goToReceiptScan}
             variant="primary"
           />
 
           <AppButton
             title="Scan Item / Barcode"
-            onPress={() => {}}
+            onPress={goToBarcodeScan}
             variant="accent"
           />
-        </React.Fragment>
+        </>
       </BottomSheetModal>
 
       <ItemFormModal
         visible={showAddFormModal}
         mode="add"
-        initialValues={EMPTY_ITEM_FORM}
-        onClose={() => setShowAddFormModal(false)}
+        initialValues={draft ?? EMPTY_ITEM_FORM}
+        onClose={closeAddFormModal}
         onSubmit={handleAddItem}
       />
     </>

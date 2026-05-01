@@ -1,6 +1,6 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
 import BottomSheetModal from '@/components/modals/BottomSheetModal';
 import AppButton from '@/components/ui/AppButton';
@@ -18,6 +18,7 @@ export type ItemFormValues = {
   expirationDate: string;
   category: string;
   storageLocation: string;
+  trackingMode: 'count' | 'amount' | 'fill';
 };
 
 type ItemFormModalProps = {
@@ -25,24 +26,13 @@ type ItemFormModalProps = {
   mode: 'add' | 'edit';
   initialValues: ItemFormValues;
   onClose: () => void;
-  onSubmit: (values: ItemFormValues) => void;
+  onSubmit: (values: ItemFormValues) => void | Promise<void>;
   hideStorageField?: boolean;
   lockedStorageLocation?: string;
   onDelete?: () => void;
 };
 
-const UNIT_OPTIONS = [
-  'count',
-  'oz',
-  'lb',
-  'g',
-  'kg',
-  'tsp',
-  'tbsp',
-  'cup',
-  'ml',
-  'l',
-];
+const UNIT_OPTIONS = ['oz', 'lb', 'g', 'kg', 'tsp', 'tbsp', 'cup', 'mL', 'L'];
 
 const CATEGORY_OPTIONS = [
   'Produce',
@@ -64,6 +54,8 @@ const STORAGE_OPTIONS = [
   'Pantry',
   'Seasonings',
 ];
+
+const FILL_OPTIONS = ['100', '75', '50', '25', '10'];
 
 function formatDate(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -92,6 +84,9 @@ export default function ItemFormModal({
   const [storageLocation, setStorageLocation] = useState(
     lockedStorageLocation ?? initialValues.storageLocation
   );
+  const [trackingMode, setTrackingMode] = useState<ItemFormValues['trackingMode']>(
+    initialValues.trackingMode ?? 'count'
+  );
 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [activePicker, setActivePicker] = useState<PickerType>(null);
@@ -104,6 +99,7 @@ export default function ItemFormModal({
       setExpirationDate(initialValues.expirationDate);
       setCategory(initialValues.category);
       setStorageLocation(lockedStorageLocation ?? initialValues.storageLocation);
+      setTrackingMode(initialValues.trackingMode ?? 'count');
     }
   }, [visible, initialValues, lockedStorageLocation]);
 
@@ -120,6 +116,8 @@ export default function ItemFormModal({
     if (activePicker === 'storage') return STORAGE_OPTIONS;
     return [];
   }, [activePicker]);
+
+  const resolvedStorageLocation = lockedStorageLocation ?? storageLocation;
 
   const handleQuantityChange = (text: string) => {
     const cleaned = text.replace(/[^0-9.]/g, '');
@@ -146,10 +144,33 @@ export default function ItemFormModal({
     setActivePicker(null);
   };
 
-  const handleSubmit = () => {
-    const resolvedStorageLocation =
-      lockedStorageLocation ?? storageLocation;
+  const handleTrackingModeChange = (
+    modeValue: ItemFormValues['trackingMode']
+  ) => {
+    setTrackingMode(modeValue);
 
+    if (modeValue === 'count') {
+      setUnit('ct');
+      if (!quantity) setQuantity('1');
+    } else if (modeValue === 'fill') {
+      setUnit('%');
+      setQuantity('100');
+    } else {
+      if (unit === 'ct' || unit === '%') {
+        setUnit('');
+      }
+      if (quantity === '100' || quantity === '75' || quantity === '50' || quantity === '25' || quantity === '10') {
+        setQuantity('');
+      }
+    }
+  };
+
+  const handleFillSelect = (percent: string) => {
+    setQuantity(percent);
+    setUnit('%');
+  };
+
+  const handleSubmit = async () => {
     if (!itemName.trim()) {
       Alert.alert('Missing field', 'Please enter an item name.');
       return;
@@ -157,6 +178,11 @@ export default function ItemFormModal({
 
     if (!quantity.trim()) {
       Alert.alert('Missing field', 'Please enter a quantity.');
+      return;
+    }
+
+    if (trackingMode === 'amount' && !unit.trim()) {
+      Alert.alert('Missing field', 'Please choose a unit.');
       return;
     }
 
@@ -175,13 +201,19 @@ export default function ItemFormModal({
       return;
     }
 
-    onSubmit({
+    await onSubmit({
       name: itemName,
       quantity,
-      unit,
+      unit:
+        trackingMode === 'count'
+          ? 'ct'
+          : trackingMode === 'fill'
+          ? '%'
+          : unit,
       expirationDate,
       category,
       storageLocation: resolvedStorageLocation,
+      trackingMode,
     });
   };
 
@@ -202,27 +234,106 @@ export default function ItemFormModal({
               required
             />
 
-            <View style={styles.row}>
-              <View style={styles.halfWidth}>
-                <AppInput
-                  label="Quantity"
-                  placeholder="Enter quantity"
-                  value={quantity}
-                  onChangeText={handleQuantityChange}
-                  keyboardType="numeric"
-                  required
-                />
-              </View>
+            <View style={styles.formGroup}>
+              <AppText variant="caption">
+                How would you like to track this item?
+              </AppText>
 
-              <View style={styles.halfWidth}>
-                <AppSelect
-                  label="Unit"
-                  placeholder="Select unit"
-                  value={unit}
-                  onPress={() => setActivePicker('unit')}
-                />
+              <View style={styles.trackingModeRow}>
+                {[
+                  { key: 'count', label: 'Count' },
+                  { key: 'amount', label: 'Amount' },
+                  { key: 'fill', label: 'Percentage' },
+                ].map((option) => (
+                  <Pressable
+                    key={option.key}
+                    onPress={() =>
+                      handleTrackingModeChange(
+                        option.key as ItemFormValues['trackingMode']
+                      )
+                    }
+                    style={[
+                      styles.trackingChip,
+                      trackingMode === option.key && styles.trackingChipActive,
+                    ]}
+                  >
+                    <AppText
+                      variant="caption"
+                      style={[
+                        styles.trackingChipText,
+                        trackingMode === option.key &&
+                          styles.trackingChipTextActive,
+                      ]}
+                    >
+                      {option.label}
+                    </AppText>
+                  </Pressable>
+                ))}
               </View>
             </View>
+
+            {trackingMode === 'fill' ? (
+              <>
+                <View style={styles.formGroup}>
+  <AppText variant="caption">Estimated Fill *</AppText>
+
+  <View style={styles.fillOptionRow}>
+    {FILL_OPTIONS.map((percent) => (
+      <Pressable
+        key={percent}
+        onPress={() => handleFillSelect(percent)}
+        style={[
+          styles.fillChip,
+          quantity === percent && styles.fillChipActive,
+        ]}
+      >
+        <AppText
+          variant="caption"
+          style={[
+            styles.fillChipText,
+            quantity === percent && styles.fillChipTextActive,
+          ]}
+        >
+          {percent}%
+        </AppText>
+      </Pressable>
+    ))}
+  </View>
+</View>
+              </>
+            ) : (
+              <View style={styles.row}>
+                <View style={styles.halfWidth}>
+                  <AppInput
+                    label="Quantity"
+                    placeholder="Enter quantity"
+                    value={quantity}
+                    onChangeText={handleQuantityChange}
+                    keyboardType="numeric"
+                    required
+                  />
+                </View>
+
+                <View style={styles.halfWidth}>
+                  {trackingMode === 'count' ? (
+                    <AppInput
+                      label="Unit"
+                      placeholder="ct"
+                      value="ct"
+                      editable={false}
+                    />
+                  ) : (
+                    <AppSelect
+                      label="Unit"
+                      placeholder="Select unit"
+                      value={unit}
+                      onPress={() => setActivePicker('unit')}
+                      required
+                    />
+                  )}
+                </View>
+              </View>
+            )}
 
             <AppSelect
               label="Expiration Date"
@@ -255,7 +366,8 @@ export default function ItemFormModal({
             )}
 
             <AppText variant="caption">
-              Unit is optional. Expiration date can be estimated.
+              Count is best for individual items, Amount is best for measured
+              units, and Percentage is best for bags or large liquids.
             </AppText>
           </View>
 
@@ -364,5 +476,53 @@ const styles = StyleSheet.create({
   deleteText: {
     color: 'white',
     fontFamily: 'Poppins_500Medium',
+  },
+  trackingModeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  trackingChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: COLORS.porcelain,
+    borderWidth: 1.5,
+    borderColor: COLORS.honeydew_shadow,
+  },
+  trackingChipActive: {
+    backgroundColor: COLORS.mint_leaf,
+    borderColor: COLORS.blue_spruce,
+  },
+  trackingChipText: {
+    color: COLORS.blue_spruce_shadow,
+  },
+  trackingChipTextActive: {
+    color: COLORS.blue_spruce_shadow,
+    fontWeight: '700',
+  },
+  fillOptionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  fillChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: COLORS.porcelain,
+    borderWidth: 1.5,
+    borderColor: COLORS.honeydew_shadow,
+  },
+  fillChipActive: {
+    backgroundColor: COLORS.mint_leaf,
+    borderColor: COLORS.blue_spruce,
+  },
+  fillChipText: {
+    color: COLORS.blue_spruce_shadow,
+  },
+  fillChipTextActive: {
+    color: COLORS.blue_spruce_shadow,
+    fontWeight: '700',
   },
 });
