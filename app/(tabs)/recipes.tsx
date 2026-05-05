@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Dimensions,
   Pressable,
   ScrollView,
@@ -10,14 +11,19 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import BottomSheetModal from '@/components/modals/BottomSheetModal';
 import CategoryTile from '@/components/recipes/CategoryTile';
 import RecipeActionCard from '@/components/recipes/RecipeActionCard';
 import RecipeCard from '@/components/recipes/RecipeCard';
+import SaveRecipeModal from '@/components/recipes/SaveRecipeModal';
+import AppButton from '@/components/ui/AppButton';
+import AppInput from '@/components/ui/AppInput';
 import AppText from '@/components/ui/AppText';
 import OverviewCard from '@/components/ui/OverviewCard';
 import SearchBar from '@/components/ui/SearchBar';
 import { COLORS } from '@/constants/colors';
-import { mockRecipes } from '@/data/mockRecipes';
+import { useRecipeCollections } from '@/context/RecipeCollectionsContext';
+import { PopularRecipe, SaveRecipeInput } from '@/types/recipes';
 
 const { width } = Dimensions.get('window');
 const POPULAR_CARD_WIDTH = width * 0.5;
@@ -31,59 +37,64 @@ const CATEGORY_OPTIONS = [
   { id: 'quick', label: 'Quick' },
 ];
 
-const COLLECTIONS = [
-  { id: 'saved', label: 'Saved', count: 3 },
-  { id: 'tried', label: 'Have Tried', count: 0 },
-  { id: 'favorites', label: 'Favorites', count: 0 },
-];
-
-function normalize(value: string) {
-  return value.toLowerCase().trim();
-}
-
 export default function RecipesScreen() {
+  const {
+    collections,
+    addCollection,
+    getCollectionCount,
+    isRecipeSaved,
+  } = useRecipeCollections();
+
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [popularRecipes, setPopularRecipes] = useState<PopularRecipe[]>([]);
+  const [isLoadingPopular, setIsLoadingPopular] = useState(false);
+  const [popularError, setPopularError] = useState('');
 
-  const filteredPopularRecipes = useMemo(() => {
-    const query = normalize(searchQuery);
+  const [selectedRecipeToSave, setSelectedRecipeToSave] =
+    useState<SaveRecipeInput | null>(null);
 
-    let results = [...mockRecipes];
+  const [showCreateCollectionModal, setShowCreateCollectionModal] =
+    useState(false);
 
-    if (query) {
-      results = results.filter((recipe) => {
-        const nameMatch = normalize(recipe.name).includes(query);
+  const [newCollectionName, setNewCollectionName] = useState('');
 
-        const tagMatch =
-          recipe.tags?.some((tag: string) => normalize(tag).includes(query)) ??
-          false;
-
-        const ingredientMatch =
-          recipe.ingredients?.some((ingredient: any) =>
-            normalize(String(ingredient.name ?? '')).includes(query)
-          ) ?? false;
-
-        return nameMatch || tagMatch || ingredientMatch;
-      });
+  useEffect(() => {
+    async function loadPopularRecipes() {
+      // TEMP: disable API while quota is exceeded
+      setPopularRecipes([]);
+      setPopularError('API limit reached. Try again tomorrow.');
+      return;
     }
+
+    loadPopularRecipes();
+  }, [searchQuery, selectedCategory]);
+
+  const sectionTitle = useMemo(() => {
+    if (searchQuery.trim()) return 'Matching Recipes';
+
+    if (selectedCategory === 'quick') return 'Quick Recipes';
 
     if (selectedCategory !== 'all') {
-      if (selectedCategory === 'quick') {
-        results = results.filter((recipe) => recipe.minutes <= 30);
-      } else {
-        results = results.filter((recipe) => {
-          const categoryValue = normalize(String(recipe.category ?? ''));
-          const tags = recipe.tags?.map((tag: string) => normalize(tag)) ?? [];
+      const selected = CATEGORY_OPTIONS.find(
+        (item) => item.id === selectedCategory
+      );
 
-          return (
-            categoryValue === selectedCategory || tags.includes(selectedCategory)
-          );
-        });
-      }
+      return selected ? `${selected.label} Recipes` : 'Popular';
     }
 
-    return results;
+    return 'Popular';
   }, [searchQuery, selectedCategory]);
+
+  async function handleCreateCollection() {
+    const trimmedName = newCollectionName.trim();
+
+    if (!trimmedName) return;
+
+    await addCollection(trimmedName);
+    setNewCollectionName('');
+    setShowCreateCollectionModal(false);
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -125,13 +136,25 @@ export default function RecipesScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.collectionRow}
           >
-            {COLLECTIONS.map((collection) => (
-              <View key={collection.id} style={styles.collectionCardWrapper}>
-                <OverviewCard label={collection.label} count={collection.count} />
-              </View>
+            {collections.map((collection) => (
+              <Pressable
+                key={collection.id}
+                style={styles.collectionCardWrapper}
+                onPress={() =>
+                  router.push(`/recipes/collections/${collection.id}` as any)
+                }
+              >
+                <OverviewCard
+                  label={collection.name}
+                  count={getCollectionCount(collection.id)}
+                />
+              </Pressable>
             ))}
 
-            <Pressable style={styles.addFolderCard}>
+            <Pressable
+              style={styles.addFolderCard}
+              onPress={() => setShowCreateCollectionModal(true)}
+            >
               <View style={styles.addFolderIcon}>
                 <Ionicons name="add" size={22} color={COLORS.blue_spruce} />
               </View>
@@ -163,38 +186,96 @@ export default function RecipesScreen() {
         </View>
 
         <View style={styles.section}>
-          <AppText variant="sectionTitle">
-            {searchQuery.trim() ? 'Matching Recipes' : 'Popular'}
-          </AppText>
+          <AppText variant="sectionTitle">{sectionTitle}</AppText>
 
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.popularRow}
           >
-            {filteredPopularRecipes.length > 0 ? (
-              filteredPopularRecipes.map((recipe) => (
-                <View key={recipe.id} style={styles.popularCardWrapper}>
-                  <RecipeCard
-                    name={recipe.name}
-                    minutes={recipe.minutes}
-                    matchPercent={recipe.matchPercent}
-                    variant="carousel"
-                    onPress={() => router.push(`/recipes/${recipe.id}` as any)}
-                  />
-                </View>
-              ))
-            ) : (
+            {isLoadingPopular ? (
+              <View style={styles.loadingState}>
+                <ActivityIndicator />
+                <AppText variant="caption" style={styles.emptyText}>
+                  Loading recipes...
+                </AppText>
+              </View>
+            ) : null}
+
+            {!isLoadingPopular && popularError ? (
+              <View style={styles.emptyState}>
+                <AppText variant="cardTitle">Something went wrong</AppText>
+                <AppText variant="caption" style={styles.emptyText}>
+                  {popularError}
+                </AppText>
+              </View>
+            ) : null}
+
+            {!isLoadingPopular && !popularError && popularRecipes.length > 0
+              ? popularRecipes.map((recipe) => (
+                  <View key={recipe.id} style={styles.popularCardWrapper}>
+                    <RecipeCard
+                      name={recipe.title}
+                      minutes={recipe.readyInMinutes ?? 0}
+                      badgeLabel="Popular"
+                      image={recipe.image}
+                      variant="carousel"
+                      isSaved={isRecipeSaved(recipe.id)}
+                      onBookmarkPress={() =>
+                        setSelectedRecipeToSave({
+                          recipe_id: recipe.id,
+                          title: recipe.title,
+                          image: recipe.image,
+                          ready_in_minutes: recipe.readyInMinutes ?? null,
+                        })
+                      }
+                      onPress={() => router.push(`/recipes/${recipe.id}` as any)}
+                    />
+                  </View>
+                ))
+              : null}
+
+            {!isLoadingPopular &&
+            !popularError &&
+            popularRecipes.length === 0 ? (
               <View style={styles.emptyState}>
                 <AppText variant="cardTitle">No matching recipes found</AppText>
                 <AppText variant="caption" style={styles.emptyText}>
-                  Try searching by recipe name, ingredient, or tag.
+                  Try searching by recipe name, ingredient, or category.
                 </AppText>
               </View>
-            )}
+            ) : null}
           </ScrollView>
         </View>
       </ScrollView>
+
+      <SaveRecipeModal
+        visible={!!selectedRecipeToSave}
+        recipe={selectedRecipeToSave}
+        onClose={() => setSelectedRecipeToSave(null)}
+      />
+
+      <BottomSheetModal
+        visible={showCreateCollectionModal}
+        onClose={() => setShowCreateCollectionModal(false)}
+      >
+        <View style={styles.createCollectionSheet}>
+          <AppText variant="sectionTitle">Create Collection</AppText>
+
+          <AppInput
+            label="Collection Name"
+            placeholder="Favorites, To Try, Meal Prep..."
+            value={newCollectionName}
+            onChangeText={setNewCollectionName}
+          />
+
+          <AppButton
+            title="Create"
+            onPress={handleCreateCollection}
+            disabled={!newCollectionName.trim()}
+          />
+        </View>
+      </BottomSheetModal>
     </SafeAreaView>
   );
 }
@@ -266,6 +347,19 @@ const styles = StyleSheet.create({
   popularCardWrapper: {
     width: POPULAR_CARD_WIDTH,
   },
+  loadingState: {
+    width: 260,
+    backgroundColor: COLORS.porcelain,
+    borderRadius: 18,
+    padding: 18,
+    gap: 10,
+    alignItems: 'center',
+    borderTopWidth: 2,
+    borderLeftWidth: 2,
+    borderRightWidth: 3,
+    borderBottomWidth: 3,
+    borderColor: COLORS.honeydew_shadow,
+  },
   emptyState: {
     width: 260,
     backgroundColor: COLORS.porcelain,
@@ -280,5 +374,8 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     color: COLORS.input_text,
+  },
+  createCollectionSheet: {
+    gap: 14,
   },
 });

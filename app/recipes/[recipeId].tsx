@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
   Linking,
   Pressable,
@@ -13,7 +15,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AppText from '@/components/ui/AppText';
 import { COLORS } from '@/constants/colors';
 import { useFoodItems } from '@/context/FoodItemsContext';
-import { mockRecipes } from '@/data/mockRecipes';
+import { fetchRecipeInformation } from '@/services/recipeSuggestionService';
+import { RecipeInformation, SpoonacularIngredient } from '@/types/recipes';
 
 type IngredientStatus = 'enough' | 'some' | 'missing';
 
@@ -21,43 +24,42 @@ function normalize(value: string) {
   return value.toLowerCase().trim();
 }
 
-function parseAmount(amount: string) {
-  const cleaned = amount.trim().toLowerCase();
-  const match = cleaned.match(/^(\d+(?:\.\d+)?)\s*(.*)$/);
-
-  if (!match) return null;
-
-  return {
-    quantity: Number(match[1]),
-    unit: match[2].trim(),
-  };
+function stripHtml(value: string) {
+  return value.replace(/<[^>]*>/g, '').trim();
 }
 
 function getIngredientStatus(
-  ingredient: { name: string; amount: string },
+  ingredient: SpoonacularIngredient,
   pantryItems: any[]
 ): IngredientStatus {
-  const matchingItem = pantryItems.find(
-    (item) => normalize(String(item.name)) === normalize(ingredient.name)
-  );
+  const ingredientName = normalize(ingredient.name);
+
+  const matchingItem = pantryItems.find((item) => {
+    const pantryName = normalize(String(item.name ?? ''));
+
+    return (
+      pantryName === ingredientName ||
+      pantryName.includes(ingredientName) ||
+      ingredientName.includes(pantryName)
+    );
+  });
 
   if (!matchingItem) return 'missing';
 
-  const needed = parseAmount(ingredient.amount);
   const availableQuantity =
     typeof matchingItem.quantity === 'number'
       ? matchingItem.quantity
       : Number(matchingItem.quantity);
-  const availableUnit = normalize(String(matchingItem.unit ?? ''));
 
-  if (!needed || Number.isNaN(availableQuantity)) {
+  const availableUnit = normalize(String(matchingItem.unit ?? ''));
+  const neededUnit = normalize(String(ingredient.unit ?? ''));
+
+  if (Number.isNaN(availableQuantity)) {
     return 'some';
   }
 
-  const neededUnit = normalize(needed.unit);
-
   if (neededUnit && availableUnit && neededUnit === availableUnit) {
-    return availableQuantity >= needed.quantity ? 'enough' : 'some';
+    return availableQuantity >= ingredient.amount ? 'enough' : 'some';
   }
 
   return 'some';
@@ -67,15 +69,73 @@ export default function RecipeDetailScreen() {
   const { recipeId } = useLocalSearchParams<{ recipeId: string }>();
   const { items } = useFoodItems();
 
-  const recipe = mockRecipes.find((item) => item.id === recipeId);
+  const [recipe, setRecipe] = useState<RecipeInformation | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  if (!recipe) {
+  useEffect(() => {
+    async function loadRecipeDetails() {
+      if (!recipeId) {
+        setErrorMessage('Missing recipe id.');
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        setErrorMessage('');
+
+        const result = await fetchRecipeInformation(recipeId);
+        setRecipe(result);
+      } catch (error) {
+        console.error(error);
+        setErrorMessage('We could not load this recipe.');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadRecipeDetails();
+  }, [recipeId]);
+
+  const instructionSteps = useMemo(() => {
+    if (!recipe) return [];
+
+    return recipe.analyzedInstructions.flatMap((group) => group.steps);
+  }, [recipe]);
+
+  const openExternalLink = async () => {
+    if (!recipe) return;
+
+    const url = recipe.sourceUrl || recipe.spoonacularSourceUrl;
+    if (!url) return;
+
+    const supported = await Linking.canOpenURL(url);
+    if (supported) {
+      await Linking.openURL(url);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.notFoundContainer} edges={['top']}>
+        <View style={styles.notFoundContent}>
+          <ActivityIndicator />
+          <AppText variant="body" style={styles.notFoundText}>
+            Loading recipe...
+          </AppText>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!recipe || errorMessage) {
     return (
       <SafeAreaView style={styles.notFoundContainer} edges={['top']}>
         <View style={styles.notFoundContent}>
           <AppText variant="sectionTitle">Recipe not found</AppText>
           <AppText variant="body" style={styles.notFoundText}>
-            We couldn’t find that recipe.
+            {errorMessage || 'We couldn’t find that recipe.'}
           </AppText>
 
           <Pressable onPress={() => router.back()} style={styles.primaryButton}>
@@ -87,16 +147,6 @@ export default function RecipeDetailScreen() {
       </SafeAreaView>
     );
   }
-
-  const openExternalLink = async () => {
-    const url = recipe.videoUrl || recipe.recipeUrl;
-    if (!url) return;
-
-    const supported = await Linking.canOpenURL(url);
-    if (supported) {
-      await Linking.openURL(url);
-    }
-  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -132,11 +182,11 @@ export default function RecipeDetailScreen() {
         <View style={styles.bodyContent}>
           <View style={styles.summaryCard}>
             <AppText variant="sectionTitle" style={styles.recipeTitle}>
-              {recipe.name}
+              {recipe.title}
             </AppText>
 
             <AppText variant="caption" style={styles.ingredientCount}>
-              {recipe.ingredients.length} ingredients
+              {recipe.extendedIngredients.length} ingredients
             </AppText>
 
             <View style={styles.metaRow}>
@@ -147,18 +197,18 @@ export default function RecipeDetailScreen() {
                   color={COLORS.royal_gold_shadow}
                 />
                 <AppText variant="caption" style={styles.metaText}>
-                  {recipe.minutes} min
+                  {recipe.readyInMinutes} min
                 </AppText>
               </View>
 
               <View style={styles.metaItem}>
                 <Ionicons
-                  name="flame-outline"
+                  name="heart-outline"
                   size={18}
                   color={COLORS.royal_gold_shadow}
                 />
                 <AppText variant="caption" style={styles.metaText}>
-                  {recipe.calories} cal
+                  {recipe.aggregateLikes ?? 0} likes
                 </AppText>
               </View>
 
@@ -173,6 +223,12 @@ export default function RecipeDetailScreen() {
                 </AppText>
               </View>
             </View>
+
+            {recipe.summary ? (
+              <AppText variant="body" style={styles.summaryText}>
+                {stripHtml(recipe.summary)}
+              </AppText>
+            ) : null}
           </View>
 
           <View style={styles.section}>
@@ -183,12 +239,12 @@ export default function RecipeDetailScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.ingredientsRow}
             >
-              {recipe.ingredients.map((ingredient, index) => {
+              {recipe.extendedIngredients.map((ingredient, index) => {
                 const status = getIngredientStatus(ingredient, items);
 
                 return (
                   <View
-                    key={`${ingredient.name}-${index}`}
+                    key={`${ingredient.id}-${ingredient.name}-${index}`}
                     style={styles.ingredientCard}
                   >
                     <View style={styles.ingredientImageBox}>
@@ -208,7 +264,7 @@ export default function RecipeDetailScreen() {
                     </AppText>
 
                     <AppText variant="caption" style={styles.ingredientAmount}>
-                      {ingredient.amount}
+                      {ingredient.original}
                     </AppText>
 
                     <View
@@ -249,29 +305,35 @@ export default function RecipeDetailScreen() {
             <AppText variant="sectionTitle">Instructions</AppText>
 
             <View style={styles.instructionsList}>
-              {recipe.instructions.map((step, index) => (
-                <View key={index} style={styles.stepCard}>
-                  <AppText variant="cardTitle" style={styles.stepTitle}>
-                    Step {index + 1}
-                  </AppText>
+              {instructionSteps.length > 0 ? (
+                instructionSteps.map((step, index) => (
+                  <View key={`${step.number}-${index}`} style={styles.stepCard}>
+                    <AppText variant="cardTitle" style={styles.stepTitle}>
+                      Step {index + 1}
+                    </AppText>
+                    <AppText variant="body" style={styles.stepText}>
+                      {step.step}
+                    </AppText>
+                  </View>
+                ))
+              ) : (
+                <View style={styles.stepCard}>
                   <AppText variant="body" style={styles.stepText}>
-                    {step}
+                    No step-by-step instructions were provided for this recipe.
                   </AppText>
                 </View>
-              ))}
+              )}
             </View>
           </View>
 
-          {(recipe.videoUrl || recipe.recipeUrl) && (
+          {(recipe.sourceUrl || recipe.spoonacularSourceUrl) && (
             <View style={styles.section}>
               <AppText variant="sectionTitle">More</AppText>
 
               <Pressable onPress={openExternalLink} style={styles.linkButton}>
                 <Ionicons name="open-outline" size={18} color={COLORS.porcelain} />
                 <AppText variant="button" style={styles.linkButtonText}>
-                  {recipe.videoUrl
-                    ? 'Watch Video / View Recipe'
-                    : 'Open Recipe Website'}
+                  Open Recipe Website
                 </AppText>
               </Pressable>
             </View>
@@ -353,6 +415,11 @@ const styles = StyleSheet.create({
   ingredientCount: {
     textAlign: 'center',
     color: COLORS.input_text,
+  },
+  summaryText: {
+    color: COLORS.blue_spruce_shadow,
+    lineHeight: 22,
+    marginTop: 6,
   },
   metaRow: {
     flexDirection: 'row',
@@ -491,6 +558,7 @@ const styles = StyleSheet.create({
   },
   notFoundText: {
     color: COLORS.input_text,
+    textAlign: 'center',
   },
   primaryButton: {
     marginTop: 8,

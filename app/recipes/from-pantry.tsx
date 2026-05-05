@@ -1,232 +1,142 @@
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import RecipeCard from '@/components/recipes/RecipeCard';
+import SaveRecipeModal from '@/components/recipes/SaveRecipeModal';
 import AppText from '@/components/ui/AppText';
-import FilterChip from '@/components/ui/FilterChip';
 import SearchBar from '@/components/ui/SearchBar';
 import { COLORS } from '@/constants/colors';
-import { mockRecipes } from '@/data/mockRecipes';
-
-const FILTER_OPTIONS = ['All', 'Quick', 'Vegetarian', 'Pasta'];
+import { useFoodItems } from '@/context/FoodItemsContext';
+import { useRecipeCollections } from '@/context/RecipeCollectionsContext';
+import {
+  fetchRecipeSuggestions,
+  getRecipeMatchPercent,
+} from '@/services/recipeSuggestionService';
+import { RecipeSuggestion, SaveRecipeInput } from '@/types/recipes';
+import { getRecipeIngredientNames } from '@/utils/recipeIngredients';
 
 function normalize(value: string) {
   return value.toLowerCase().trim();
 }
 
 export default function FromPantryScreen() {
+  const { items } = useFoodItems();
+  const { isRecipeSaved } = useRecipeCollections();
+
+  const [recipes, setRecipes] = useState<RecipeSuggestion[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedFilter, setSelectedFilter] = useState('All');
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedRecipeToSave, setSelectedRecipeToSave] =
+    useState<SaveRecipeInput | null>(null);
+
+  const ingredients = useMemo(
+    () => getRecipeIngredientNames(items),
+    [items]
+  );
+
+  useEffect(() => {
+    async function loadRecipes() {
+      if (ingredients.length === 0) return;
+
+      try {
+        setIsLoading(true);
+
+        const results = await fetchRecipeSuggestions({
+          ingredients,
+          number: 12,
+        });
+
+        setRecipes(results);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadRecipes();
+  }, [ingredients]);
 
   const filteredRecipes = useMemo(() => {
     const query = normalize(searchQuery);
 
-    let results = [...mockRecipes];
+    if (!query) return recipes;
 
-    if (query) {
-      results = results.filter((recipe) => {
-        const nameMatch = normalize(recipe.name).includes(query);
-
-        const tagMatch =
-          recipe.tags?.some((tag: string) => normalize(tag).includes(query)) ??
-          false;
-
-        const ingredientMatch =
-          recipe.ingredients?.some((ingredient: any) =>
-            normalize(String(ingredient.name ?? '')).includes(query)
-          ) ?? false;
-
-        return nameMatch || tagMatch || ingredientMatch;
-      });
-    }
-
-    if (selectedFilter !== 'All') {
-      results = results.filter((recipe) => {
-        const tags = recipe.tags?.map((tag: string) => normalize(tag)) ?? [];
-        const category = normalize(String(recipe.category ?? ''));
-        const name = normalize(recipe.name);
-
-        switch (selectedFilter) {
-          case 'Quick':
-            return recipe.minutes <= 30 || tags.includes('quick');
-          case 'Vegetarian':
-            return tags.includes('vegetarian') || category.includes('vegetarian');
-          case 'Pasta':
-            return tags.includes('pasta') || name.includes('pasta');
-          default:
-            return true;
-        }
-      });
-    }
-
-    return results.sort((a, b) => b.matchPercent - a.matchPercent);
-  }, [searchQuery, selectedFilter]);
+    return recipes.filter((recipe) =>
+      normalize(recipe.title).includes(query)
+    );
+  }, [recipes, searchQuery]);
 
   return (
-    <View style={styles.screen}>
-      <SafeAreaView style={styles.headerSafeArea} edges={['top']}>
-        <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <AppText variant="sectionTitle" style={styles.backArrow}>
-              ←
-            </AppText>
-          </Pressable>
-
-          <AppText variant="sectionTitle" style={styles.headerTitle}>
-            Cook with what you have
-          </AppText>
-        </View>
-      </SafeAreaView>
-
-      <View style={styles.body}>
-        <View style={styles.searchSection}>
-          <SearchBar
-            placeholder="Search recipes or ingredients"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
-
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.titleRow}>
-            <AppText variant="sectionTitle">Best Matches</AppText>
-            <AppText variant="caption" style={styles.subtitle}>
-              Based on items already in your pantry
-            </AppText>
-          </View>
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filterRow}
-          >
-            {FILTER_OPTIONS.map((filter) => (
-              <FilterChip
-                key={filter}
-                label={filter}
-                selected={selectedFilter === filter}
-                onPress={() => setSelectedFilter(filter)}
-              />
-            ))}
-          </ScrollView>
-
-          {filteredRecipes.length > 0 ? (
-            <View style={styles.grid}>
-              {filteredRecipes.map((recipe) => (
-                <View key={recipe.id} style={styles.gridItem}>
-                  <RecipeCard
-                    name={recipe.name}
-                    minutes={recipe.minutes}
-                    matchPercent={recipe.matchPercent}
-                    variant="grid"
-                    onPress={() => router.push(`/recipes/${recipe.id}` as any)}
-                  />
-                </View>
-              ))}
-            </View>
-          ) : (
-            <View style={styles.emptyState}>
-              <AppText variant="cardTitle">No matching recipes found</AppText>
-              <AppText variant="caption" style={styles.emptyText}>
-                Try another ingredient or a different filter.
-              </AppText>
-            </View>
-          )}
-        </ScrollView>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.header}>
+        <AppText variant="sectionTitle">Cook with what you have</AppText>
       </View>
-    </View>
+
+      <View style={styles.search}>
+        <SearchBar
+          placeholder="Search recipes"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+      </View>
+
+      <ScrollView contentContainerStyle={styles.content}>
+        {isLoading ? (
+          <ActivityIndicator />
+        ) : (
+          <View style={styles.grid}>
+            {filteredRecipes.map((recipe) => (
+              <View key={recipe.id} style={styles.gridItem}>
+                <RecipeCard
+                  name={recipe.title}
+                  minutes={0}
+                  matchPercent={getRecipeMatchPercent(recipe)}
+                  image={recipe.image}
+                  isSaved={isRecipeSaved(recipe.id)}
+                  onBookmarkPress={() =>
+                    setSelectedRecipeToSave({
+                      recipe_id: recipe.id,
+                      title: recipe.title,
+                      image: recipe.image,
+                    })
+                  }
+                  onPress={() =>
+                    router.push(`/recipes/${recipe.id}` as any)
+                  }
+                />
+              </View>
+            ))}
+          </View>
+        )}
+      </ScrollView>
+
+      <SaveRecipeModal
+        visible={!!selectedRecipeToSave}
+        recipe={selectedRecipeToSave}
+        onClose={() => setSelectedRecipeToSave(null)}
+      />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: COLORS.honeydew,
-  },
-  headerSafeArea: {
-    backgroundColor: COLORS.blue_spruce,
-  },
-  header: {
-    backgroundColor: COLORS.blue_spruce,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 16,
-  },
-  body: {
-    flex: 1,
-    backgroundColor: COLORS.honeydew,
-  },
-  backButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: COLORS.porcelain,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderTopWidth: 2,
-    borderLeftWidth: 2,
-    borderRightWidth: 3,
-    borderBottomWidth: 3,
-    borderColor: COLORS.blue_spruce_shadow,
-  },
-  backArrow: {
-    color: COLORS.blue_spruce,
-    lineHeight: 24,
-  },
-  headerTitle: {
-    color: COLORS.porcelain,
-    flexShrink: 1,
-    lineHeight: 44,
-  },
-  searchSection: {
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 6,
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 24,
-    gap: 16,
-  },
-  titleRow: {
-    gap: 4,
-  },
-  subtitle: {
-    color: COLORS.input_text,
-  },
-  filterRow: {
-    gap: 10,
-    paddingRight: 16,
-  },
+  container: { flex: 1, backgroundColor: COLORS.honeydew },
+  header: { padding: 16 },
+  search: { paddingHorizontal: 16 },
+  content: { padding: 16 },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     rowGap: 14,
   },
-  gridItem: {
-    width: '48%',
-  },
-  emptyState: {
-    backgroundColor: COLORS.porcelain,
-    borderRadius: 16,
-    padding: 20,
-    borderTopWidth: 2,
-    borderLeftWidth: 2,
-    borderRightWidth: 3,
-    borderBottomWidth: 3,
-    borderColor: COLORS.mint_leaf,
-    gap: 6,
-  },
-  emptyText: {
-    color: COLORS.input_text,
-  },
+  gridItem: { width: '48%' },
 });
