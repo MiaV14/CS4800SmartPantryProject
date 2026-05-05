@@ -2,6 +2,7 @@
 import { AddItemDraftProvider } from '@/context/AddItemDraftContext';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { FoodItemsProvider } from '@/context/FoodItemsContext';
+import { GroceryListProvider } from "@/context/GroceryListContext";
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
@@ -75,12 +76,14 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <FoodItemsProvider>
-        <AddItemDraftProvider>
-          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-            <RootNavigator />
-            <StatusBar style="auto" />
-          </ThemeProvider>
-        </AddItemDraftProvider>
+        <GroceryListProvider>
+          <AddItemDraftProvider>
+            <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+              <RootNavigator />
+              <StatusBar style="auto" />
+            </ThemeProvider>
+          </AddItemDraftProvider>
+        </GroceryListProvider>
       </FoodItemsProvider>
     </AuthProvider>
   );

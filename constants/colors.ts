@@ -6,6 +6,7 @@ export const COLORS = {
     blue_spruce_shadow: '#044E41',
 
     mint_leaf: '#40AB80',
+    mint_leaf_shadow: '#B7E4CC',
 
     honeydew: '#DFF3E7',
     honeydew_shadow: '#9BCAB8',

@@ -1,10 +1,37 @@
 export type ExpiryStatus = 'fresh' | 'expiring' | 'expired';
 
-function parseDateString(dateString: string): Date {
-  const [month, day, year] = dateString.split('/').map(Number);
-  const date = new Date(year, month - 1, day);
-  date.setHours(0, 0, 0, 0);
-  return date;
+function parseExpirationDate(dateString: string): Date | null {
+  if (!dateString.trim()) {
+    return null;
+  }
+
+  // Handles Supabase date format: YYYY-MM-DD
+  if (dateString.includes('-')) {
+    const [year, month, day] = dateString.split('-').map(Number);
+
+    if (!year || !month || !day) {
+      return null;
+    }
+
+    const date = new Date(year, month - 1, day);
+    date.setHours(0, 0, 0, 0);
+    return date;
+  }
+
+  // Handles display/manual format: MM/DD/YYYY
+  if (dateString.includes('/')) {
+    const [month, day, year] = dateString.split('/').map(Number);
+
+    if (!year || !month || !day) {
+      return null;
+    }
+
+    const date = new Date(year, month - 1, day);
+    date.setHours(0, 0, 0, 0);
+    return date;
+  }
+
+  return null;
 }
 
 function getToday(): Date {
@@ -14,12 +41,13 @@ function getToday(): Date {
 }
 
 export function getExpiryStatus(expirationDate: string): ExpiryStatus {
-  if (!expirationDate.trim()) {
+  const expiryDate = parseExpirationDate(expirationDate);
+
+  if (!expiryDate) {
     return 'fresh';
   }
 
   const today = getToday();
-  const expiryDate = parseDateString(expirationDate);
 
   const diffMs = expiryDate.getTime() - today.getTime();
   const diffDays = diffMs / (1000 * 60 * 60 * 24);
