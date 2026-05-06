@@ -7,9 +7,6 @@ import {
 const BASE_URL = 'https://api.spoonacular.com/recipes';
 const API_KEY = process.env.EXPO_PUBLIC_SPOONACULAR_API_KEY;
 
-/**
- * SIMPLE IN-MEMORY CACHE (per session)
- */
 const cache = {
   popular: new Map<string, PopularRecipe[]>(),
   suggestions: new Map<string, RecipeSuggestion[]>(),
@@ -32,11 +29,64 @@ async function handleResponse(response: Response) {
   return response.json();
 }
 
-//
-// =========================
-// FETCH BY INGREDIENTS
-// =========================
-//
+// NEW CATEGORY MAPPING
+const SPOONACULAR_TYPES: Record<string, string> = {
+  breakfast: 'breakfast',
+  'main-course': 'main course',
+  'side-dish': 'side dish',
+  dessert: 'dessert',
+  snack: 'snack',
+};
+
+export async function fetchPopularRecipes({
+  query = '',
+  category = 'all',
+  number = 12,
+}: {
+  query?: string;
+  category?: string;
+  number?: number;
+}): Promise<PopularRecipe[]> {
+  ensureApiKey();
+
+  const key = `${query}|${category}|${number}`;
+
+  if (cache.popular.has(key)) {
+    return cache.popular.get(key)!;
+  }
+
+  const params = new URLSearchParams({
+    apiKey: API_KEY!,
+    number: String(number),
+    sort: 'popularity',
+  });
+
+  if (query.trim()) {
+    params.append('query', query.trim());
+  }
+
+  // Apply Spoonacular type mapping
+  if (SPOONACULAR_TYPES[category]) {
+    params.append('type', SPOONACULAR_TYPES[category]);
+  }
+
+  // Quick filter
+  if (category === 'quick') {
+    params.append('maxReadyTime', '30');
+  }
+
+  const response = await fetch(
+    `${BASE_URL}/complexSearch?${params.toString()}`
+  );
+
+  const data = await handleResponse(response);
+
+  const results = data.results ?? [];
+
+  cache.popular.set(key, results);
+
+  return results;
+}
 
 export async function fetchRecipeSuggestions({
   ingredients,
@@ -74,69 +124,6 @@ export async function fetchRecipeSuggestions({
   return data;
 }
 
-//
-// =========================
-// POPULAR RECIPES (LOW COST)
-// =========================
-//
-
-export async function fetchPopularRecipes({
-  query = '',
-  category = 'all',
-  number = 12,
-}: {
-  query?: string;
-  category?: string;
-  number?: number;
-}): Promise<PopularRecipe[]> {
-  ensureApiKey();
-
-  const key = `${query}|${category}|${number}`;
-
-  if (cache.popular.has(key)) {
-    return cache.popular.get(key)!;
-  }
-
-  const params = new URLSearchParams({
-    apiKey: API_KEY!,
-    number: String(number),
-    sort: 'popularity',
-    // ❌ REMOVED expensive options:
-    // addRecipeInformation
-    // instructionsRequired
-  });
-
-  if (query.trim()) {
-    params.append('query', query.trim());
-  }
-
-  if (category !== 'all' && category !== 'quick') {
-    params.append('type', category);
-  }
-
-  if (category === 'quick') {
-    params.append('maxReadyTime', '30');
-  }
-
-  const response = await fetch(
-    `${BASE_URL}/complexSearch?${params.toString()}`
-  );
-
-  const data = await handleResponse(response);
-
-  const results = data.results ?? [];
-
-  cache.popular.set(key, results);
-
-  return results;
-}
-
-//
-// =========================
-// RECIPE DETAILS (CACHED)
-// =========================
-//
-
 export async function fetchRecipeInformation(
   recipeId: string | number
 ): Promise<RecipeInformation> {
@@ -161,12 +148,6 @@ export async function fetchRecipeInformation(
 
   return data;
 }
-
-//
-// =========================
-// UTIL
-// =========================
-//
 
 export function getRecipeMatchPercent(recipe: RecipeSuggestion) {
   const total =

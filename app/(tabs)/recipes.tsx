@@ -12,30 +12,41 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import BottomSheetModal from '@/components/modals/BottomSheetModal';
-import CategoryTile from '@/components/recipes/CategoryTile';
 import RecipeActionCard from '@/components/recipes/RecipeActionCard';
 import RecipeCard from '@/components/recipes/RecipeCard';
 import SaveRecipeModal from '@/components/recipes/SaveRecipeModal';
 import AppButton from '@/components/ui/AppButton';
 import AppInput from '@/components/ui/AppInput';
 import AppText from '@/components/ui/AppText';
+import FilterChip from '@/components/ui/FilterChip';
 import OverviewCard from '@/components/ui/OverviewCard';
 import SearchBar from '@/components/ui/SearchBar';
 import { COLORS } from '@/constants/colors';
 import { useRecipeCollections } from '@/context/RecipeCollectionsContext';
+import { fetchPopularRecipes } from '@/services/recipeSuggestionService';
 import { PopularRecipe, SaveRecipeInput } from '@/types/recipes';
 
 const { width } = Dimensions.get('window');
-const POPULAR_CARD_WIDTH = width * 0.5;
+const RECIPE_CARD_WIDTH = width * 0.5;
 
 const CATEGORY_OPTIONS = [
-  { id: 'all', label: 'All' },
   { id: 'breakfast', label: 'Breakfast' },
-  { id: 'lunch', label: 'Lunch' },
-  { id: 'dinner', label: 'Dinner' },
+  { id: 'main-course', label: 'Main Course' },
+  { id: 'side-dish', label: 'Side Dish' },
   { id: 'dessert', label: 'Dessert' },
+  { id: 'snack', label: 'Snack' },
   { id: 'quick', label: 'Quick' },
 ];
+
+function getDefaultRecipeCategory() {
+  const hour = new Date().getHours();
+
+  if (hour < 12) {
+    return 'breakfast';
+  }
+
+  return 'main-course';
+}
 
 export default function RecipesScreen() {
   const {
@@ -43,13 +54,16 @@ export default function RecipesScreen() {
     addCollection,
     getCollectionCount,
     isRecipeSaved,
+    removeRecipeFromAllCollections,
   } = useRecipeCollections();
 
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState(
+    getDefaultRecipeCategory()
+  );
   const [searchQuery, setSearchQuery] = useState('');
-  const [popularRecipes, setPopularRecipes] = useState<PopularRecipe[]>([]);
-  const [isLoadingPopular, setIsLoadingPopular] = useState(false);
-  const [popularError, setPopularError] = useState('');
+  const [recipes, setRecipes] = useState<PopularRecipe[]>([]);
+  const [isLoadingRecipes, setIsLoadingRecipes] = useState(false);
+  const [recipeError, setRecipeError] = useState('');
 
   const [selectedRecipeToSave, setSelectedRecipeToSave] =
     useState<SaveRecipeInput | null>(null);
@@ -60,30 +74,44 @@ export default function RecipesScreen() {
   const [newCollectionName, setNewCollectionName] = useState('');
 
   useEffect(() => {
-    async function loadPopularRecipes() {
-      // TEMP: disable API while quota is exceeded
-      setPopularRecipes([]);
-      setPopularError('API limit reached. Try again tomorrow.');
-      return;
-    }
+    const timeout = setTimeout(() => {
+      loadRecipes();
+    }, 400);
 
-    loadPopularRecipes();
+    return () => clearTimeout(timeout);
   }, [searchQuery, selectedCategory]);
 
+  async function loadRecipes() {
+    try {
+      setIsLoadingRecipes(true);
+      setRecipeError('');
+
+      const results = await fetchPopularRecipes({
+        query: searchQuery,
+        category: selectedCategory,
+        number: 12,
+      });
+
+      setRecipes(results);
+    } catch (error) {
+      console.error(error);
+      setRecipes([]);
+      setRecipeError('Could not load recipes right now.');
+    } finally {
+      setIsLoadingRecipes(false);
+    }
+  }
+
   const sectionTitle = useMemo(() => {
-    if (searchQuery.trim()) return 'Matching Recipes';
-
-    if (selectedCategory === 'quick') return 'Quick Recipes';
-
-    if (selectedCategory !== 'all') {
-      const selected = CATEGORY_OPTIONS.find(
-        (item) => item.id === selectedCategory
-      );
-
-      return selected ? `${selected.label} Recipes` : 'Popular';
+    if (searchQuery.trim()) {
+      return 'Search Results';
     }
 
-    return 'Popular';
+    const selected = CATEGORY_OPTIONS.find(
+      (item) => item.id === selectedCategory
+    );
+
+    return selected ? `${selected.label} Recipes` : 'Recommended Recipes';
   }, [searchQuery, selectedCategory]);
 
   async function handleCreateCollection() {
@@ -91,9 +119,13 @@ export default function RecipesScreen() {
 
     if (!trimmedName) return;
 
-    await addCollection(trimmedName);
-    setNewCollectionName('');
-    setShowCreateCollectionModal(false);
+    try {
+      await addCollection(trimmedName);
+      setNewCollectionName('');
+      setShowCreateCollectionModal(false);
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   return (
@@ -167,15 +199,15 @@ export default function RecipesScreen() {
         </View>
 
         <View style={styles.section}>
-          <AppText variant="sectionTitle">Categories</AppText>
+          <AppText variant="sectionTitle">Recipe Categories</AppText>
 
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoryRow}
+            contentContainerStyle={styles.categoryChipRow}
           >
             {CATEGORY_OPTIONS.map((item) => (
-              <CategoryTile
+              <FilterChip
                 key={item.id}
                 label={item.label}
                 selected={selectedCategory === item.id}
@@ -191,9 +223,9 @@ export default function RecipesScreen() {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.popularRow}
+            contentContainerStyle={styles.recipeRow}
           >
-            {isLoadingPopular ? (
+            {isLoadingRecipes ? (
               <View style={styles.loadingState}>
                 <ActivityIndicator />
                 <AppText variant="caption" style={styles.emptyText}>
@@ -202,46 +234,48 @@ export default function RecipesScreen() {
               </View>
             ) : null}
 
-            {!isLoadingPopular && popularError ? (
+            {!isLoadingRecipes && recipeError ? (
               <View style={styles.emptyState}>
-                <AppText variant="cardTitle">Something went wrong</AppText>
+                <AppText variant="cardTitle">Recipe API unavailable</AppText>
                 <AppText variant="caption" style={styles.emptyText}>
-                  {popularError}
+                  {recipeError}
                 </AppText>
               </View>
             ) : null}
 
-            {!isLoadingPopular && !popularError && popularRecipes.length > 0
-              ? popularRecipes.map((recipe) => (
-                  <View key={recipe.id} style={styles.popularCardWrapper}>
+            {!isLoadingRecipes && !recipeError && recipes.length > 0
+              ? recipes.map((recipe) => (
+                  <View key={recipe.id} style={styles.recipeCardWrapper}>
                     <RecipeCard
                       name={recipe.title}
                       minutes={recipe.readyInMinutes ?? 0}
-                      badgeLabel="Popular"
                       image={recipe.image}
                       variant="carousel"
                       isSaved={isRecipeSaved(recipe.id)}
-                      onBookmarkPress={() =>
+                      onBookmarkPress={async () => {
+                        if (isRecipeSaved(recipe.id)) {
+                          await removeRecipeFromAllCollections(recipe.id);
+                          return;
+                        }
+
                         setSelectedRecipeToSave({
                           recipe_id: recipe.id,
                           title: recipe.title,
                           image: recipe.image,
                           ready_in_minutes: recipe.readyInMinutes ?? null,
-                        })
-                      }
+                        });
+                      }}
                       onPress={() => router.push(`/recipes/${recipe.id}` as any)}
                     />
                   </View>
                 ))
               : null}
 
-            {!isLoadingPopular &&
-            !popularError &&
-            popularRecipes.length === 0 ? (
+            {!isLoadingRecipes && !recipeError && recipes.length === 0 ? (
               <View style={styles.emptyState}>
-                <AppText variant="cardTitle">No matching recipes found</AppText>
+                <AppText variant="cardTitle">No recipes found</AppText>
                 <AppText variant="caption" style={styles.emptyText}>
-                  Try searching by recipe name, ingredient, or category.
+                  Try another search or category.
                 </AppText>
               </View>
             ) : null}
@@ -335,17 +369,17 @@ const styles = StyleSheet.create({
     color: COLORS.blue_spruce_shadow,
     textAlign: 'center',
   },
-  categoryRow: {
-    gap: 12,
+  categoryChipRow: {
+    gap: 10,
     paddingRight: 16,
   },
-  popularRow: {
+  recipeRow: {
     flexDirection: 'row',
     gap: 12,
     paddingRight: 16,
   },
-  popularCardWrapper: {
-    width: POPULAR_CARD_WIDTH,
+  recipeCardWrapper: {
+    width: RECIPE_CARD_WIDTH,
   },
   loadingState: {
     width: 260,

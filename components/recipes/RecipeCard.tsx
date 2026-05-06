@@ -34,8 +34,7 @@ export default function RecipeCard({
   const shouldShowBadge =
     badgeLabel !== undefined || matchPercent !== undefined;
 
-  const displayBadge =
-    badgeLabel ?? `${matchPercent ?? 0}% match`;
+  const displayBadge = badgeLabel ?? `${matchPercent ?? 0}% match`;
 
   return (
     <Pressable
@@ -45,11 +44,7 @@ export default function RecipeCard({
     >
       <View style={styles.imageArea}>
         {image ? (
-          <Image
-            source={{ uri: image }}
-            style={styles.image}
-            resizeMode="cover"
-          />
+          <Image source={{ uri: image }} style={styles.image} resizeMode="cover" />
         ) : (
           <View style={styles.placeholderImage}>
             <Ionicons

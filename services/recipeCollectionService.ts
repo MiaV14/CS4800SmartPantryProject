@@ -39,11 +39,24 @@ export async function createRecipeCollection(
   name: string,
   isDefault = false
 ): Promise<RecipeCollection> {
+  const trimmedName = name.trim();
+
+  const { data: existing, error: existingError } = await supabase
+    .from('recipe_collections')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('name', trimmedName)
+    .maybeSingle();
+
+  if (existingError) throw existingError;
+
+  if (existing) return existing;
+
   const { data, error } = await supabase
     .from('recipe_collections')
     .insert({
       user_id: userId,
-      name: name.trim(),
+      name: trimmedName,
       is_default: isDefault,
     })
     .select('*')
@@ -57,37 +70,39 @@ export async function createRecipeCollection(
 export async function getOrCreateDefaultRecipeCollection(
   userId: string
 ): Promise<RecipeCollection> {
-  // 1. Try to find existing default
-  const { data: existingDefault } = await supabase
+  const { data: existingDefault, error: defaultFetchError } = await supabase
     .from('recipe_collections')
     .select('*')
     .eq('user_id', userId)
     .eq('is_default', true)
     .maybeSingle();
 
+  if (defaultFetchError) throw defaultFetchError;
+
   if (existingDefault) return existingDefault;
 
-  // 2. Try to find by name (prevents duplicate constraint crash)
-  const { data: existingByName } = await supabase
+  const { data: existingByName, error: nameFetchError } = await supabase
     .from('recipe_collections')
     .select('*')
     .eq('user_id', userId)
     .eq('name', DEFAULT_COLLECTION_NAME)
     .maybeSingle();
 
+  if (nameFetchError) throw nameFetchError;
+
   if (existingByName) {
-    // Promote it to default instead of creating new
-    const { data: updated } = await supabase
+    const { data: updated, error: updateError } = await supabase
       .from('recipe_collections')
       .update({ is_default: true })
       .eq('id', existingByName.id)
       .select('*')
       .single();
 
-    return updated!;
+    if (updateError) throw updateError;
+
+    return updated;
   }
 
-  // 3. Create ONLY if truly missing
   return createRecipeCollection(userId, DEFAULT_COLLECTION_NAME, true);
 }
 
@@ -106,6 +121,10 @@ export async function saveRecipeToCollection(
         title: recipe.title,
         image: recipe.image ?? null,
         ready_in_minutes: recipe.ready_in_minutes ?? null,
+        servings: recipe.servings ?? null,
+        summary: recipe.summary ?? null,
+        saved_recipe_data: recipe.saved_recipe_data ?? null,
+        source: 'spoonacular',
       },
       {
         onConflict: 'user_id,collection_id,recipe_id',
@@ -124,6 +143,19 @@ export async function deleteSavedRecipe(savedRecipeId: string): Promise<void> {
     .from('saved_recipes')
     .delete()
     .eq('id', savedRecipeId);
+
+  if (error) throw error;
+}
+
+export async function deleteSavedRecipesByRecipeId(
+  userId: string,
+  recipeId: number
+): Promise<void> {
+  const { error } = await supabase
+    .from('saved_recipes')
+    .delete()
+    .eq('user_id', userId)
+    .eq('recipe_id', recipeId);
 
   if (error) throw error;
 }

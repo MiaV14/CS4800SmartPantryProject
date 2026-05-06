@@ -10,6 +10,7 @@ import React, {
 import { useAuth } from '@/context/AuthContext';
 import {
   createRecipeCollection,
+  deleteSavedRecipesByRecipeId,
   fetchRecipeCollections,
   fetchSavedRecipes,
   getOrCreateDefaultRecipeCollection,
@@ -28,10 +29,8 @@ type RecipeCollectionsContextValue = {
   error: string | null;
   refreshCollections: () => Promise<void>;
   addCollection: (name: string) => Promise<void>;
-  saveRecipe: (
-    collectionId: string,
-    recipe: SaveRecipeInput
-  ) => Promise<void>;
+  saveRecipe: (collectionId: string, recipe: SaveRecipeInput) => Promise<void>;
+  removeRecipeFromAllCollections: (recipeId: number) => Promise<void>;
   getCollectionCount: (collectionId: string) => number;
   isRecipeSaved: (recipeId: number) => boolean;
 };
@@ -88,7 +87,11 @@ export function RecipeCollectionsProvider({
 
       const created = await createRecipeCollection(user.id, trimmedName);
 
-      setCollections((current) => [...current, created]);
+      setCollections((current) => {
+        const alreadyExists = current.some((item) => item.id === created.id);
+        if (alreadyExists) return current;
+        return [...current, created];
+      });
     },
     [user]
   );
@@ -114,10 +117,24 @@ export function RecipeCollectionsProvider({
     [user]
   );
 
+  const removeRecipeFromAllCollections = useCallback(
+    async (recipeId: number) => {
+      if (!user) return;
+
+      await deleteSavedRecipesByRecipeId(user.id, recipeId);
+
+      setSavedRecipes((current) =>
+        current.filter((recipe) => recipe.recipe_id !== recipeId)
+      );
+    },
+    [user]
+  );
+
   const getCollectionCount = useCallback(
     (collectionId: string) => {
-      return savedRecipes.filter((recipe) => recipe.collection_id === collectionId)
-        .length;
+      return savedRecipes.filter(
+        (recipe) => recipe.collection_id === collectionId
+      ).length;
     },
     [savedRecipes]
   );
@@ -142,6 +159,7 @@ export function RecipeCollectionsProvider({
       refreshCollections,
       addCollection,
       saveRecipe,
+      removeRecipeFromAllCollections,
       getCollectionCount,
       isRecipeSaved,
     }),
@@ -153,6 +171,7 @@ export function RecipeCollectionsProvider({
       refreshCollections,
       addCollection,
       saveRecipe,
+      removeRecipeFromAllCollections,
       getCollectionCount,
       isRecipeSaved,
     ]

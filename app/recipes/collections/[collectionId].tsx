@@ -8,9 +8,16 @@ import { COLORS } from '@/constants/colors';
 import { useRecipeCollections } from '@/context/RecipeCollectionsContext';
 
 export default function RecipeCollectionDetailScreen() {
-  const { collectionId } = useLocalSearchParams<{ collectionId: string }>();
+  const params = useLocalSearchParams();
+  const collectionId =
+    typeof params.collectionId === 'string' ? params.collectionId : '';
 
-  const { collections, savedRecipes } = useRecipeCollections();
+  
+  const {
+    collections,
+    savedRecipes,
+    removeRecipeFromAllCollections,
+  } = useRecipeCollections();
 
   const collection = collections.find((item) => item.id === collectionId);
 
@@ -70,6 +77,9 @@ export default function RecipeCollectionDetailScreen() {
                   image={recipe.image ?? undefined}
                   variant="grid"
                   isSaved
+                  onBookmarkPress={async () => {
+                    await removeRecipeFromAllCollections(recipe.recipe_id);
+                  }}
                   onPress={() => router.push(`/recipes/${recipe.recipe_id}` as any)}
                 />
               </View>

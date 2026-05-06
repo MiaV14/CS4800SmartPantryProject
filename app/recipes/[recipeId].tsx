@@ -12,11 +12,17 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import SaveRecipeModal from '@/components/recipes/SaveRecipeModal';
 import AppText from '@/components/ui/AppText';
 import { COLORS } from '@/constants/colors';
 import { useFoodItems } from '@/context/FoodItemsContext';
+import { useRecipeCollections } from '@/context/RecipeCollectionsContext';
 import { fetchRecipeInformation } from '@/services/recipeSuggestionService';
-import { RecipeInformation, SpoonacularIngredient } from '@/types/recipes';
+import {
+  RecipeInformation,
+  SaveRecipeInput,
+  SpoonacularIngredient,
+} from '@/types/recipes';
 
 type IngredientStatus = 'enough' | 'some' | 'missing';
 
@@ -24,7 +30,8 @@ function normalize(value: string) {
   return value.toLowerCase().trim();
 }
 
-function stripHtml(value: string) {
+function stripHtml(value?: string | null) {
+  if (!value) return '';
   return value.replace(/<[^>]*>/g, '').trim();
 }
 
@@ -54,9 +61,7 @@ function getIngredientStatus(
   const availableUnit = normalize(String(matchingItem.unit ?? ''));
   const neededUnit = normalize(String(ingredient.unit ?? ''));
 
-  if (Number.isNaN(availableQuantity)) {
-    return 'some';
-  }
+  if (Number.isNaN(availableQuantity)) return 'some';
 
   if (neededUnit && availableUnit && neededUnit === availableUnit) {
     return availableQuantity >= ingredient.amount ? 'enough' : 'some';
@@ -68,10 +73,18 @@ function getIngredientStatus(
 export default function RecipeDetailScreen() {
   const { recipeId } = useLocalSearchParams<{ recipeId: string }>();
   const { items } = useFoodItems();
+  const { isRecipeSaved, removeRecipeFromAllCollections } =
+    useRecipeCollections();
 
   const [recipe, setRecipe] = useState<RecipeInformation | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isBookmarkBusy, setIsBookmarkBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [selectedRecipeToSave, setSelectedRecipeToSave] =
+    useState<SaveRecipeInput | null>(null);
+
+  const numericRecipeId = recipeId ? Number(recipeId) : null;
+  const saved = numericRecipeId ? isRecipeSaved(numericRecipeId) : false;
 
   useEffect(() => {
     async function loadRecipeDetails() {
@@ -115,6 +128,33 @@ export default function RecipeDetailScreen() {
       await Linking.openURL(url);
     }
   };
+
+  async function handleBookmarkPress() {
+    if (!recipe || !numericRecipeId || isBookmarkBusy) return;
+
+    if (saved) {
+      try {
+        setIsBookmarkBusy(true);
+        await removeRecipeFromAllCollections(numericRecipeId);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setIsBookmarkBusy(false);
+      }
+
+      return;
+    }
+
+    setSelectedRecipeToSave({
+      recipe_id: recipe.id,
+      title: recipe.title,
+      image: recipe.image,
+      ready_in_minutes: recipe.readyInMinutes ?? null,
+      servings: recipe.servings ?? null,
+      summary: recipe.summary ?? null,
+      saved_recipe_data: recipe as unknown as Record<string, unknown>,
+    });
+  }
 
   if (isLoading) {
     return (
@@ -172,8 +212,16 @@ export default function RecipeDetailScreen() {
                 />
               </Pressable>
 
-              <Pressable style={styles.iconButton}>
-                <Ionicons name="heart" size={20} color={COLORS.vibrant_coral} />
+              <Pressable
+                style={styles.iconButton}
+                onPress={handleBookmarkPress}
+                disabled={isBookmarkBusy}
+              >
+                <Ionicons
+                  name={saved ? 'bookmark' : 'bookmark-outline'}
+                  size={21}
+                  color={saved ? COLORS.royal_gold : COLORS.porcelain}
+                />
               </Pressable>
             </View>
           </View>
@@ -203,12 +251,12 @@ export default function RecipeDetailScreen() {
 
               <View style={styles.metaItem}>
                 <Ionicons
-                  name="heart-outline"
+                  name={saved ? 'bookmark' : 'bookmark-outline'}
                   size={18}
                   color={COLORS.royal_gold_shadow}
                 />
                 <AppText variant="caption" style={styles.metaText}>
-                  {recipe.aggregateLikes ?? 0} likes
+                  {saved ? 'Saved' : 'Not saved'}
                 </AppText>
               </View>
 
@@ -340,6 +388,12 @@ export default function RecipeDetailScreen() {
           )}
         </View>
       </ScrollView>
+
+      <SaveRecipeModal
+        visible={!!selectedRecipeToSave}
+        recipe={selectedRecipeToSave}
+        onClose={() => setSelectedRecipeToSave(null)}
+      />
     </SafeAreaView>
   );
 }
@@ -401,11 +455,6 @@ const styles = StyleSheet.create({
     borderRightWidth: 3,
     borderBottomWidth: 3,
     borderColor: COLORS.honeydew_shadow,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
     gap: 10,
   },
   recipeTitle: {

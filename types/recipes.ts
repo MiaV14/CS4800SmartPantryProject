@@ -76,6 +76,9 @@ export type SavedRecipe = {
   title: string;
   image: string | null;
   ready_in_minutes: number | null;
+  servings?: number | null;
+  summary?: string | null;
+  saved_recipe_data?: Record<string, unknown> | null;
   created_at: string;
 };
 
@@ -84,4 +87,7 @@ export type SaveRecipeInput = {
   title: string;
   image?: string | null;
   ready_in_minutes?: number | null;
+  servings?: number | null;
+  summary?: string | null;
+  saved_recipe_data?: Record<string, unknown> | null;
 };

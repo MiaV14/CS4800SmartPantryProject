@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Pressable,
   ScrollView,
   StyleSheet,
   View,
@@ -28,22 +29,26 @@ function normalize(value: string) {
 
 export default function FromPantryScreen() {
   const { items } = useFoodItems();
-  const { isRecipeSaved } = useRecipeCollections();
+  const { isRecipeSaved, removeRecipeFromAllCollections } =
+    useRecipeCollections();
 
   const [recipes, setRecipes] = useState<RecipeSuggestion[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const [selectedRecipeToSave, setSelectedRecipeToSave] =
     useState<SaveRecipeInput | null>(null);
 
-  const ingredients = useMemo(
-    () => getRecipeIngredientNames(items),
-    [items]
-  );
+  const ingredients = useMemo(() => getRecipeIngredientNames(items), [items]);
 
   useEffect(() => {
     async function loadRecipes() {
-      if (ingredients.length === 0) return;
+      setErrorMessage('');
+
+      if (ingredients.length === 0) {
+        setRecipes([]);
+        return;
+      }
 
       try {
         setIsLoading(true);
@@ -56,6 +61,7 @@ export default function FromPantryScreen() {
         setRecipes(results);
       } catch (err) {
         console.error(err);
+        setErrorMessage('Could not load pantry recipes right now.');
       } finally {
         setIsLoading(false);
       }
@@ -69,53 +75,133 @@ export default function FromPantryScreen() {
 
     if (!query) return recipes;
 
-    return recipes.filter((recipe) =>
-      normalize(recipe.title).includes(query)
-    );
+    return recipes.filter((recipe) => {
+      const titleMatch = normalize(recipe.title).includes(query);
+
+      const usedIngredientMatch = recipe.usedIngredients.some((ingredient) =>
+        normalize(ingredient.name).includes(query)
+      );
+
+      const missedIngredientMatch = recipe.missedIngredients.some((ingredient) =>
+        normalize(ingredient.name).includes(query)
+      );
+
+      return titleMatch || usedIngredientMatch || missedIngredientMatch;
+    });
   }, [recipes, searchQuery]);
+
+  async function handleBookmarkPress(recipe: RecipeSuggestion) {
+    if (isRecipeSaved(recipe.id)) {
+      await removeRecipeFromAllCollections(recipe.id);
+      return;
+    }
+
+    setSelectedRecipeToSave({
+      recipe_id: recipe.id,
+      title: recipe.title,
+      image: recipe.image,
+      saved_recipe_data: recipe as unknown as Record<string, unknown>,
+    });
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <AppText variant="sectionTitle">Cook with what you have</AppText>
+        <Pressable onPress={() => router.back()} style={styles.backButton}>
+          <AppText variant="sectionTitle" style={styles.backArrow}>
+            ←
+          </AppText>
+        </Pressable>
+
+        <View style={styles.headerText}>
+          <AppText variant="sectionTitle" style={styles.headerTitle}>
+            Cook with what you have
+          </AppText>
+
+          <AppText variant="caption" style={styles.headerSubtitle}>
+            Recipes based on your pantry items
+          </AppText>
+        </View>
       </View>
 
       <View style={styles.search}>
         <SearchBar
-          placeholder="Search recipes"
+          placeholder="Search recipes or ingredients"
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         {isLoading ? (
-          <ActivityIndicator />
-        ) : (
+          <View style={styles.emptyState}>
+            <ActivityIndicator />
+            <AppText variant="caption" style={styles.emptyText}>
+              Finding recipes from your pantry...
+            </AppText>
+          </View>
+        ) : null}
+
+        {!isLoading && errorMessage ? (
+          <View style={styles.emptyState}>
+            <AppText variant="cardTitle">Recipe API unavailable</AppText>
+            <AppText variant="caption" style={styles.emptyText}>
+              {errorMessage}
+            </AppText>
+          </View>
+        ) : null}
+
+        {!isLoading && !errorMessage && ingredients.length === 0 ? (
+          <View style={styles.emptyState}>
+            <AppText variant="cardTitle">No pantry items yet</AppText>
+            <AppText variant="caption" style={styles.emptyText}>
+              Add pantry items first, then Freshli can suggest recipes.
+            </AppText>
+          </View>
+        ) : null}
+
+        {!isLoading && !errorMessage && filteredRecipes.length > 0 ? (
           <View style={styles.grid}>
             {filteredRecipes.map((recipe) => (
               <View key={recipe.id} style={styles.gridItem}>
                 <RecipeCard
                   name={recipe.title}
-                  minutes={0}
                   matchPercent={getRecipeMatchPercent(recipe)}
                   image={recipe.image}
                   isSaved={isRecipeSaved(recipe.id)}
-                  onBookmarkPress={() =>
+                  onBookmarkPress={async () => {
+                    if (isRecipeSaved(recipe.id)) {
+                      await removeRecipeFromAllCollections(recipe.id);
+                      return;
+                    }
+
                     setSelectedRecipeToSave({
                       recipe_id: recipe.id,
                       title: recipe.title,
                       image: recipe.image,
-                    })
-                  }
-                  onPress={() =>
-                    router.push(`/recipes/${recipe.id}` as any)
-                  }
+                    });
+                  }}
+                  onPress={() => router.push(`/recipes/${recipe.id}` as any)}
                 />
               </View>
             ))}
           </View>
-        )}
+        ) : null}
+
+        {!isLoading &&
+        !errorMessage &&
+        ingredients.length > 0 &&
+        filteredRecipes.length === 0 ? (
+          <View style={styles.emptyState}>
+            <AppText variant="cardTitle">No recipes found</AppText>
+            <AppText variant="caption" style={styles.emptyText}>
+              Try another search or add more pantry items.
+            </AppText>
+          </View>
+        ) : null}
       </ScrollView>
 
       <SaveRecipeModal
@@ -128,15 +214,77 @@ export default function FromPantryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.honeydew },
-  header: { padding: 16 },
-  search: { paddingHorizontal: 16 },
-  content: { padding: 16 },
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.honeydew,
+  },
+  header: {
+    backgroundColor: COLORS.blue_spruce,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 16,
+  },
+  backButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: COLORS.porcelain,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderTopWidth: 2,
+    borderLeftWidth: 2,
+    borderRightWidth: 3,
+    borderBottomWidth: 3,
+    borderColor: COLORS.blue_spruce_shadow,
+  },
+  backArrow: {
+    color: COLORS.blue_spruce,
+    lineHeight: 24,
+  },
+  headerText: {
+    flex: 1,
+  },
+  headerTitle: {
+    color: COLORS.porcelain,
+  },
+  headerSubtitle: {
+    color: COLORS.porcelain,
+    opacity: 0.85,
+  },
+  search: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+  },
+  content: {
+    padding: 16,
+    paddingBottom: 32,
+  },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     rowGap: 14,
   },
-  gridItem: { width: '48%' },
+  gridItem: {
+    width: '48%',
+  },
+  emptyState: {
+    backgroundColor: COLORS.porcelain,
+    borderRadius: 16,
+    padding: 20,
+    gap: 10,
+    alignItems: 'center',
+    borderTopWidth: 2,
+    borderLeftWidth: 2,
+    borderRightWidth: 3,
+    borderBottomWidth: 3,
+    borderColor: COLORS.honeydew_shadow,
+  },
+  emptyText: {
+    color: COLORS.input_text,
+    textAlign: 'center',
+  },
 });
