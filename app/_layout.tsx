@@ -1,8 +1,7 @@
-// APP _layout.tsx
 import { AddItemDraftProvider } from '@/context/AddItemDraftContext';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { FoodItemsProvider } from '@/context/FoodItemsContext';
-import { GroceryListProvider } from "@/context/GroceryListContext";
+import { GroceryListProvider } from '@/context/GroceryListContext';
 import { RecipeCollectionsProvider } from '@/context/RecipeCollectionsContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
@@ -29,9 +28,12 @@ import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
 function RootNavigator() {
-  const { user, isLoading } = useAuth();
+  const { user, profile, isLoading, isProfileLoading } = useAuth();
 
-  if (isLoading) {
+  const isCheckingSession = isLoading || (!!user && isProfileLoading);
+  const hasCompletedOnboarding = profile?.onboarding_completed === true;
+
+  if (isCheckingSession) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" />
@@ -45,10 +47,18 @@ function RootNavigator() {
         <Stack.Screen name="(auth)" />
       </Stack.Protected>
 
-      <Stack.Protected guard={!!user}>
+      <Stack.Protected guard={!!user && !hasCompletedOnboarding}>
+        <Stack.Screen name="(onboarding)" />
+      </Stack.Protected>
+
+      <Stack.Protected guard={!!user && hasCompletedOnboarding}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="storage/[storageId]" />
         <Stack.Screen name="scan" />
+        <Stack.Screen name="recipes/[recipeId]" />
+        <Stack.Screen name="recipes/from-pantry" />
+        <Stack.Screen name="recipes/expiring" />
+        <Stack.Screen name="profile/edit" />
       </Stack.Protected>
     </Stack>
   );

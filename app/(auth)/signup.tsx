@@ -26,6 +26,14 @@ export default function SignUpScreen() {
       return;
     }
 
+    if (password.length < 8) {
+      Alert.alert(
+        'Password too short',
+        'Password must be at least 8 characters.'
+      );
+      return;
+    }
+
     if (password !== confirmPassword) {
       Alert.alert('Password mismatch', 'Passwords do not match.');
       return;
@@ -40,7 +48,7 @@ export default function SignUpScreen() {
         'Your account was created. Please confirm your email before logging in.'
       );
 
-      router.push('/(auth)/login');
+      router.replace('/(auth)/login');
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Something went wrong.';

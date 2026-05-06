@@ -28,7 +28,6 @@ export default function LoginScreen() {
     try {
       setSubmitting(true);
       await login(trimmedEmail, password);
-      router.replace('/(tabs)');
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Something went wrong.';

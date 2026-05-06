@@ -1,4 +1,8 @@
-export type GroceryListSource = "manual" | "expired" | "expiring_soon" | "running_low";
+export type GroceryListSource =
+  | 'manual'
+  | 'expired'
+  | 'expiring_soon'
+  | 'running_low';
 
 export type GroceryListItem = {
   id: string;
@@ -21,4 +25,20 @@ export type NewGroceryListItem = {
   category?: string | null;
   source?: GroceryListSource;
   source_food_item_id?: string | null;
+};
+
+export type UserProfile = {
+  id: string;
+  onboarding_completed: boolean;
+  diet: string | null;
+  intolerances: string[];
+  household_size: number;
+  avatar_url: string | null;
+};
+
+export type OnboardingProfileUpdate = {
+  diet: string | null;
+  intolerances: string[];
+  household_size: number;
+  avatar_url?: string | null;
 };
