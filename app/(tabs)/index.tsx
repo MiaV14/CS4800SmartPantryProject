@@ -2,7 +2,14 @@
 
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import AppText from '@/components/ui/AppText';
@@ -12,25 +19,15 @@ import StorageCard from '@/components/ui/StorageCard';
 import { COLORS } from '@/constants/colors';
 import { useAuth } from '@/context/AuthContext';
 import { useFoodItems } from '@/context/FoodItemsContext';
+import { fetchRecipeSuggestions } from '@/services/recipeSuggestionService';
 import { getExpiryStatus } from '@/utils/expiry';
+import { getRecipeIngredientNames } from '@/utils/recipeIngredients';
 
 const STORAGE_CONFIG = [
-  {
-    id: 'fridge-main',
-    name: 'Fridge - Main',
-  },
-  {
-    id: 'fridge-freezer',
-    name: 'Fridge - Freezer',
-  },
-  {
-    id: 'pantry',
-    name: 'Pantry',
-  },
-  {
-    id: 'seasonings',
-    name: 'Seasonings',
-  },
+  { id: 'fridge-main', name: 'Fridge - Main' },
+  { id: 'fridge-freezer', name: 'Fridge - Freezer' },
+  { id: 'pantry', name: 'Pantry' },
+  { id: 'seasonings', name: 'Seasonings' },
 ];
 
 const STORAGE_NAME_BY_ID: Record<string, string> = {
@@ -44,11 +41,49 @@ function normalize(value: string) {
   return value.toLowerCase().trim();
 }
 
+function getMealPrompt() {
+  const hour = new Date().getHours();
+
+  if (hour < 11) {
+    return {
+      greeting: 'Good morning',
+      meal: 'breakfast',
+      title: 'What’s for breakfast?',
+    };
+  }
+
+  if (hour < 16) {
+    return {
+      greeting: 'Good afternoon',
+      meal: 'lunch',
+      title: 'What’s for lunch?',
+    };
+  }
+
+  if (hour < 21) {
+    return {
+      greeting: 'Good evening',
+      meal: 'dinner',
+      title: 'What’s for dinner?',
+    };
+  }
+
+  return {
+    greeting: 'Good evening',
+    meal: 'snack',
+    title: 'Need a snack?',
+  };
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const { items, isLoading } = useFoodItems();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+
   const [searchQuery, setSearchQuery] = useState('');
+  const [isFindingMeal, setIsFindingMeal] = useState(false);
+
+  const mealPrompt = useMemo(() => getMealPrompt(), []);
 
   const storageSummaries = useMemo(() => {
     return STORAGE_CONFIG.map((storage) => {
@@ -81,9 +116,18 @@ export default function HomeScreen() {
   }, [items]);
 
   const firstName = useMemo(() => {
-    if (!user?.email) return 'User';
+    if (profile?.full_name) {
+      return profile.full_name.trim().split(' ')[0];
+    }
+
+    if (!user?.email) return 'there';
+
     return user.email.split('@')[0];
-  }, [user]);
+  }, [profile, user]);
+
+  const recipeIngredients = useMemo(() => {
+    return getRecipeIngredientNames(items);
+  }, [items]);
 
   const filteredItems = useMemo(() => {
     const query = normalize(searchQuery);
@@ -108,6 +152,56 @@ export default function HomeScreen() {
   }, [items, searchQuery]);
 
   const isSearching = searchQuery.trim().length > 0;
+
+  async function handleSmartMealPress() {
+    if (recipeIngredients.length === 0) {
+      Alert.alert(
+        'No pantry items yet',
+        'Add a few pantry items first so Freshli can suggest a recipe.'
+      );
+      return;
+    }
+
+    try {
+      setIsFindingMeal(true);
+
+      const recipes = await fetchRecipeSuggestions({
+        ingredients: recipeIngredients,
+        number: 12,
+        preferences: {
+          diet: profile?.diet,
+          intolerances: profile?.intolerances,
+          householdSize: profile?.household_size,
+        },
+      });
+
+      if (recipes.length === 0) {
+        Alert.alert(
+          'No recipe found',
+          'Try adding more pantry items or changing your preferences.'
+        );
+        return;
+      }
+
+      const bestRecipe = [...recipes].sort((a, b) => {
+        if (b.usedIngredientCount !== a.usedIngredientCount) {
+          return b.usedIngredientCount - a.usedIngredientCount;
+        }
+
+        return a.missedIngredientCount - b.missedIngredientCount;
+      })[0];
+
+      router.push(`/recipes/${bestRecipe.id}` as any);
+    } catch (error) {
+      console.error(error);
+      Alert.alert(
+        'Recipe unavailable',
+        `We could not find a ${mealPrompt.meal} recipe right now.`
+      );
+    } finally {
+      setIsFindingMeal(false);
+    }
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -213,13 +307,23 @@ export default function HomeScreen() {
             </View>
           ) : (
             <>
-              <View style={styles.banner}>
+              <Pressable
+                style={styles.banner}
+                onPress={handleSmartMealPress}
+                disabled={isFindingMeal}
+              >
                 <AppText variant="heroGreeting" style={styles.bannerGreeting}>
-                  Good morning, {firstName}!
+                  {mealPrompt.greeting}, {firstName}!
                 </AppText>
 
-                <AppText variant="heroTitle">What’s for Breakfast?</AppText>
-              </View>
+                <AppText variant="heroTitle">{mealPrompt.title}</AppText>
+
+                <AppText variant="caption" style={styles.bannerHint}>
+                  {isFindingMeal
+                    ? 'Finding your best match...'
+                    : 'Tap to find a recipe from your pantry.'}
+                </AppText>
+              </Pressable>
 
               <View style={styles.overviewSection}>
                 <AppText variant="sectionTitle">Overview</AppText>
@@ -299,6 +403,10 @@ const styles = StyleSheet.create({
   },
   bannerGreeting: {
     marginBottom: 6,
+  },
+  bannerHint: {
+    marginTop: 8,
+    color: COLORS.blue_spruce_shadow,
   },
   overviewSection: {
     gap: 8,

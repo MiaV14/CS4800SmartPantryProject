@@ -14,6 +14,7 @@ import SaveRecipeModal from '@/components/recipes/SaveRecipeModal';
 import AppText from '@/components/ui/AppText';
 import SearchBar from '@/components/ui/SearchBar';
 import { COLORS } from '@/constants/colors';
+import { useAuth } from '@/context/AuthContext';
 import { useFoodItems } from '@/context/FoodItemsContext';
 import { useRecipeCollections } from '@/context/RecipeCollectionsContext';
 import {
@@ -28,6 +29,7 @@ function normalize(value: string) {
 }
 
 export default function FromPantryScreen() {
+  const { profile, isProfileLoading } = useAuth();
   const { items } = useFoodItems();
   const { isRecipeSaved, removeRecipeFromAllCollections } =
     useRecipeCollections();
@@ -43,6 +45,8 @@ export default function FromPantryScreen() {
 
   useEffect(() => {
     async function loadRecipes() {
+      if (isProfileLoading) return;
+
       setErrorMessage('');
 
       if (ingredients.length === 0) {
@@ -56,6 +60,11 @@ export default function FromPantryScreen() {
         const results = await fetchRecipeSuggestions({
           ingredients,
           number: 12,
+          preferences: {
+            diet: profile?.diet,
+            intolerances: profile?.intolerances,
+            householdSize: profile?.household_size,
+          },
         });
 
         setRecipes(results);
@@ -68,7 +77,7 @@ export default function FromPantryScreen() {
     }
 
     loadRecipes();
-  }, [ingredients]);
+  }, [ingredients, profile, isProfileLoading]);
 
   const filteredRecipes = useMemo(() => {
     const query = normalize(searchQuery);
@@ -172,18 +181,7 @@ export default function FromPantryScreen() {
                   matchPercent={getRecipeMatchPercent(recipe)}
                   image={recipe.image}
                   isSaved={isRecipeSaved(recipe.id)}
-                  onBookmarkPress={async () => {
-                    if (isRecipeSaved(recipe.id)) {
-                      await removeRecipeFromAllCollections(recipe.id);
-                      return;
-                    }
-
-                    setSelectedRecipeToSave({
-                      recipe_id: recipe.id,
-                      title: recipe.title,
-                      image: recipe.image,
-                    });
-                  }}
+                  onBookmarkPress={() => handleBookmarkPress(recipe)}
                   onPress={() => router.push(`/recipes/${recipe.id}` as any)}
                 />
               </View>
@@ -198,7 +196,7 @@ export default function FromPantryScreen() {
           <View style={styles.emptyState}>
             <AppText variant="cardTitle">No recipes found</AppText>
             <AppText variant="caption" style={styles.emptyText}>
-              Try another search or add more pantry items.
+              Try another search, change preferences, or add more pantry items.
             </AppText>
           </View>
         ) : null}

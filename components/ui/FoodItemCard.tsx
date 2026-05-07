@@ -8,7 +8,7 @@ type FoodItemCardProps = {
   quantity: string;
   unit?: string;
   category: string;
-  expirationDate: string;
+  expirationDate?: string | null;
   onPress?: () => void;
 };
 
@@ -21,7 +21,7 @@ export default function FoodItemCard({
   onPress,
 }: FoodItemCardProps) {
   const quantityLabel = unit ? `${quantity} ${unit}` : quantity;
-  const expiryStatus = getExpiryStatus(expirationDate);
+  const expiryStatus = expirationDate ? getExpiryStatus(expirationDate) : 'fresh';
 
   const cardStyle = [
     styles.card,

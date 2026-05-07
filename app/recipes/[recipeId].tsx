@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import SaveRecipeModal from '@/components/recipes/SaveRecipeModal';
 import AppText from '@/components/ui/AppText';
 import { COLORS } from '@/constants/colors';
+import { useAuth } from '@/context/AuthContext';
 import { useFoodItems } from '@/context/FoodItemsContext';
 import { useRecipeCollections } from '@/context/RecipeCollectionsContext';
 import { fetchRecipeInformation } from '@/services/recipeSuggestionService';
@@ -35,9 +36,56 @@ function stripHtml(value?: string | null) {
   return value.replace(/<[^>]*>/g, '').trim();
 }
 
+function formatAmount(amount: number) {
+  if (!Number.isFinite(amount)) return '';
+
+  if (amount === 0) return '0';
+
+  if (amount < 0.125) {
+    return '< ⅛';
+  }
+
+  const whole = Math.floor(amount);
+  const fraction = amount - whole;
+
+  const fractions = [
+    { value: 0.125, label: '⅛' },
+    { value: 0.25, label: '¼' },
+    { value: 0.333, label: '⅓' },
+    { value: 0.5, label: '½' },
+    { value: 0.667, label: '⅔' },
+    { value: 0.75, label: '¾' },
+  ];
+
+  const closest = fractions.reduce((best, current) =>
+    Math.abs(current.value - fraction) < Math.abs(best.value - fraction)
+      ? current
+      : best
+  );
+
+  if (fraction < 0.08) return String(whole);
+  if (1 - fraction < 0.08) return String(whole + 1);
+
+  return whole > 0 ? `${whole} ${closest.label}` : closest.label;
+}
+
+function getScaledIngredientText(
+  ingredient: SpoonacularIngredient,
+  scaleFactor: number
+) {
+  const scaledAmount = ingredient.amount * scaleFactor;
+  const amountText = formatAmount(scaledAmount);
+  const unitText = ingredient.unit ? ` ${ingredient.unit}` : '';
+
+  if (!amountText) return ingredient.original;
+
+  return `${amountText}${unitText}`;
+}
+
 function getIngredientStatus(
   ingredient: SpoonacularIngredient,
-  pantryItems: any[]
+  pantryItems: any[],
+  scaleFactor: number
 ): IngredientStatus {
   const ingredientName = normalize(ingredient.name);
 
@@ -64,7 +112,8 @@ function getIngredientStatus(
   if (Number.isNaN(availableQuantity)) return 'some';
 
   if (neededUnit && availableUnit && neededUnit === availableUnit) {
-    return availableQuantity >= ingredient.amount ? 'enough' : 'some';
+    const scaledNeededAmount = ingredient.amount * scaleFactor;
+    return availableQuantity >= scaledNeededAmount ? 'enough' : 'some';
   }
 
   return 'some';
@@ -72,6 +121,7 @@ function getIngredientStatus(
 
 export default function RecipeDetailScreen() {
   const { recipeId } = useLocalSearchParams<{ recipeId: string }>();
+  const { profile } = useAuth();
   const { items } = useFoodItems();
   const { isRecipeSaved, removeRecipeFromAllCollections } =
     useRecipeCollections();
@@ -85,6 +135,11 @@ export default function RecipeDetailScreen() {
 
   const numericRecipeId = recipeId ? Number(recipeId) : null;
   const saved = numericRecipeId ? isRecipeSaved(numericRecipeId) : false;
+
+  const householdSize = Math.max(1, profile?.household_size ?? 1);
+  const originalServings = Math.max(1, recipe?.servings ?? householdSize);
+  const scaleFactor = householdSize / originalServings;
+  const isScaled = recipe ? householdSize !== recipe.servings : false;
 
   useEffect(() => {
     async function loadRecipeDetails() {
@@ -113,7 +168,6 @@ export default function RecipeDetailScreen() {
 
   const instructionSteps = useMemo(() => {
     if (!recipe) return [];
-
     return recipe.analyzedInstructions.flatMap((group) => group.steps);
   }, [recipe]);
 
@@ -267,10 +321,29 @@ export default function RecipeDetailScreen() {
                   color={COLORS.royal_gold_shadow}
                 />
                 <AppText variant="caption" style={styles.metaText}>
-                  {recipe.servings} serve
+                  For {householdSize}
                 </AppText>
               </View>
             </View>
+
+            {isScaled ? (
+              <View style={styles.scalingNotice}>
+                <AppText variant="caption" style={styles.scalingTitle}>
+                  Adjusted from {recipe.servings} servings to your household size
+                  of {householdSize}.
+                </AppText>
+                <AppText variant="caption" style={styles.scalingText}>
+                  Scaled ingredient amounts are estimates. Use judgment for eggs,
+                  baking recipes, spices, sauces, and very small measurements.
+                </AppText>
+              </View>
+            ) : (
+              <View style={styles.scalingNotice}>
+                <AppText variant="caption" style={styles.scalingTitle}>
+                  This recipe already matches your household size.
+                </AppText>
+              </View>
+            )}
 
             {recipe.summary ? (
               <AppText variant="body" style={styles.summaryText}>
@@ -288,7 +361,16 @@ export default function RecipeDetailScreen() {
               contentContainerStyle={styles.ingredientsRow}
             >
               {recipe.extendedIngredients.map((ingredient, index) => {
-                const status = getIngredientStatus(ingredient, items);
+                const status = getIngredientStatus(
+                  ingredient,
+                  items,
+                  scaleFactor
+                );
+
+                const scaledText = getScaledIngredientText(
+                  ingredient,
+                  scaleFactor
+                );
 
                 return (
                   <View
@@ -296,11 +378,21 @@ export default function RecipeDetailScreen() {
                     style={styles.ingredientCard}
                   >
                     <View style={styles.ingredientImageBox}>
-                      <Ionicons
-                        name="nutrition-outline"
-                        size={28}
-                        color={COLORS.blue_spruce}
-                      />
+                      {ingredient.image ? (
+                          <Image
+                            source={{
+                              uri: `https://spoonacular.com/cdn/ingredients_100x100/${ingredient.image}`,
+                            }}
+                            style={styles.ingredientImage}
+                            resizeMode="contain"
+                          />
+                        ) : (
+                          <Ionicons
+                            name="nutrition-outline"
+                            size={28}
+                            color={COLORS.blue_spruce}
+                          />
+                        )}
                     </View>
 
                     <AppText
@@ -312,8 +404,18 @@ export default function RecipeDetailScreen() {
                     </AppText>
 
                     <AppText variant="caption" style={styles.ingredientAmount}>
-                      {ingredient.original}
+                      {scaledText}
                     </AppText>
+
+                    {isScaled ? (
+                      <AppText
+                        variant="caption"
+                        style={styles.originalIngredientAmount}
+                        numberOfLines={2}
+                      >
+                        Original: {ingredient.original}
+                      </AppText>
+                    ) : null}
 
                     <View
                       style={[
@@ -379,7 +481,11 @@ export default function RecipeDetailScreen() {
               <AppText variant="sectionTitle">More</AppText>
 
               <Pressable onPress={openExternalLink} style={styles.linkButton}>
-                <Ionicons name="open-outline" size={18} color={COLORS.porcelain} />
+                <Ionicons
+                  name="open-outline"
+                  size={18}
+                  color={COLORS.porcelain}
+                />
                 <AppText variant="button" style={styles.linkButtonText}>
                   Open Recipe Website
                 </AppText>
@@ -470,6 +576,21 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginTop: 6,
   },
+  scalingNotice: {
+    backgroundColor: COLORS.honeydew,
+    borderRadius: 14,
+    padding: 12,
+    gap: 4,
+    borderWidth: 1.5,
+    borderColor: COLORS.honeydew_shadow,
+  },
+  scalingTitle: {
+    color: COLORS.blue_spruce_shadow,
+  },
+  scalingText: {
+    color: COLORS.input_text,
+    lineHeight: 18,
+  },
   metaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -494,8 +615,8 @@ const styles = StyleSheet.create({
     paddingRight: 16,
   },
   ingredientCard: {
-    width: 132,
-    backgroundColor: COLORS.porcelain,
+    width: 142,
+    backgroundColor: COLORS.white,
     borderRadius: 18,
     paddingVertical: 14,
     paddingHorizontal: 12,
@@ -507,14 +628,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 3,
     borderColor: COLORS.honeydew_shadow,
   },
-  ingredientImageBox: {
-    width: 72,
-    height: 72,
-    borderRadius: 18,
-    backgroundColor: COLORS.honeydew_shadow,
-    justifyContent: 'center',
-    alignItems: 'center',
+  ingredientImage: {
+    width: 58,
+    height: 58,
   },
+
   ingredientName: {
     textAlign: 'center',
     color: COLORS.blue_spruce_shadow,
@@ -522,7 +640,14 @@ const styles = StyleSheet.create({
   },
   ingredientAmount: {
     textAlign: 'center',
+    color: COLORS.blue_spruce_shadow,
+    fontFamily: 'Montserrat_700Bold',
+  },
+  originalIngredientAmount: {
+    textAlign: 'center',
     color: COLORS.input_text,
+    fontSize: 11,
+    minHeight: 28,
   },
   ingredientStatusPill: {
     paddingHorizontal: 10,

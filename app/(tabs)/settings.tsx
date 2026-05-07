@@ -9,8 +9,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 export default function SettingsScreen() {
   const { user, profile, logout } = useAuth();
 
-  const avatarUrl = profile?.avatar_url;
-  const isImageAvatar = avatarUrl?.startsWith('http');
+  const avatarUrl = profile?.avatar_url ?? null;
+  const isImageAvatar = !!avatarUrl && avatarUrl.startsWith('http');
 
   const handleLogout = async () => {
     await logout();
@@ -29,16 +29,19 @@ export default function SettingsScreen() {
             {isImageAvatar ? (
               <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
             ) : (
-              <AppText style={styles.avatarEmoji}>{avatarUrl ?? '🏠'}</AppText>
+              <AppText style={styles.avatarEmoji}>
+                {avatarUrl || '👤'}
+              </AppText>
             )}
           </View>
 
           <View style={styles.profileInfo}>
             <AppText variant="cardTitle" style={styles.profileName}>
-              My Profile
+              {profile?.full_name || 'My Profile'}
             </AppText>
+
             <AppText variant="caption" style={styles.email}>
-              {user?.email ?? 'No email'}
+              {user?.email || 'No email'}
             </AppText>
           </View>
         </View>
@@ -50,6 +53,7 @@ export default function SettingsScreen() {
 
           <View style={styles.card}>
             <InfoRow label="Diet" value={profile?.diet || 'No preference'} />
+
             <InfoRow
               label="Intolerances"
               value={
@@ -58,6 +62,7 @@ export default function SettingsScreen() {
                   : 'None selected'
               }
             />
+
             <InfoRow
               label="Household"
               value={`${profile?.household_size ?? 1} ${
@@ -84,7 +89,11 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.logoutWrapper}>
-          <AppButton title="Log Out" onPress={handleLogout} variant="secondary" />
+          <AppButton
+            title="Log Out"
+            onPress={handleLogout}
+            variant="secondary"
+          />
         </View>
       </View>
     </SafeAreaView>
@@ -97,6 +106,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
       <AppText variant="caption" style={styles.infoLabel}>
         {label}
       </AppText>
+
       <AppText variant="body" style={styles.infoValue}>
         {value}
       </AppText>
@@ -107,7 +117,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.porcelain,
+    backgroundColor: COLORS.honeydew,
   },
   content: {
     flex: 1,
@@ -118,7 +128,7 @@ const styles = StyleSheet.create({
     color: COLORS.blue_spruce_shadow,
   },
   profileCard: {
-    backgroundColor: COLORS.honeydew,
+    backgroundColor: COLORS.porcelain,
     borderRadius: 20,
     padding: 16,
     flexDirection: 'row',
@@ -134,7 +144,7 @@ const styles = StyleSheet.create({
     width: 70,
     height: 70,
     borderRadius: 24,
-    backgroundColor: COLORS.porcelain,
+    backgroundColor: COLORS.honeydew,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -164,7 +174,7 @@ const styles = StyleSheet.create({
     color: COLORS.blue_spruce_shadow,
   },
   card: {
-    backgroundColor: COLORS.honeydew,
+    backgroundColor: COLORS.porcelain,
     borderRadius: 16,
     padding: 16,
     gap: 14,

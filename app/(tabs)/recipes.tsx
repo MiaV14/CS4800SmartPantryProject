@@ -22,6 +22,7 @@ import FilterChip from '@/components/ui/FilterChip';
 import OverviewCard from '@/components/ui/OverviewCard';
 import SearchBar from '@/components/ui/SearchBar';
 import { COLORS } from '@/constants/colors';
+import { useAuth } from '@/context/AuthContext';
 import { useRecipeCollections } from '@/context/RecipeCollectionsContext';
 import { fetchPopularRecipes } from '@/services/recipeSuggestionService';
 import { PopularRecipe, SaveRecipeInput } from '@/types/recipes';
@@ -40,15 +41,12 @@ const CATEGORY_OPTIONS = [
 
 function getDefaultRecipeCategory() {
   const hour = new Date().getHours();
-
-  if (hour < 12) {
-    return 'breakfast';
-  }
-
-  return 'main-course';
+  return hour < 12 ? 'breakfast' : 'main-course';
 }
 
 export default function RecipesScreen() {
+  const { profile, isProfileLoading } = useAuth();
+
   const {
     collections,
     addCollection,
@@ -64,24 +62,13 @@ export default function RecipesScreen() {
   const [recipes, setRecipes] = useState<PopularRecipe[]>([]);
   const [isLoadingRecipes, setIsLoadingRecipes] = useState(false);
   const [recipeError, setRecipeError] = useState('');
-
   const [selectedRecipeToSave, setSelectedRecipeToSave] =
     useState<SaveRecipeInput | null>(null);
-
   const [showCreateCollectionModal, setShowCreateCollectionModal] =
     useState(false);
-
   const [newCollectionName, setNewCollectionName] = useState('');
 
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      loadRecipes();
-    }, 400);
-
-    return () => clearTimeout(timeout);
-  }, [searchQuery, selectedCategory]);
-
-  async function loadRecipes() {
+  const loadRecipes = async () => {
     try {
       setIsLoadingRecipes(true);
       setRecipeError('');
@@ -90,6 +77,11 @@ export default function RecipesScreen() {
         query: searchQuery,
         category: selectedCategory,
         number: 12,
+        preferences: {
+          diet: profile?.diet,
+          intolerances: profile?.intolerances,
+          householdSize: profile?.household_size,
+        },
       });
 
       setRecipes(results);
@@ -100,12 +92,20 @@ export default function RecipesScreen() {
     } finally {
       setIsLoadingRecipes(false);
     }
-  }
+  };
+
+  useEffect(() => {
+    if (isProfileLoading) return;
+
+    const timeout = setTimeout(() => {
+      loadRecipes();
+    }, 400);
+
+    return () => clearTimeout(timeout);
+  }, [searchQuery, selectedCategory, profile, isProfileLoading]);
 
   const sectionTitle = useMemo(() => {
-    if (searchQuery.trim()) {
-      return 'Search Results';
-    }
+    if (searchQuery.trim()) return 'Search Results';
 
     const selected = CATEGORY_OPTIONS.find(
       (item) => item.id === selectedCategory
@@ -116,7 +116,6 @@ export default function RecipesScreen() {
 
   async function handleCreateCollection() {
     const trimmedName = newCollectionName.trim();
-
     if (!trimmedName) return;
 
     try {
@@ -127,6 +126,21 @@ export default function RecipesScreen() {
       console.error(error);
     }
   }
+
+  const handleBookmarkPress = async (recipe: PopularRecipe) => {
+    if (isRecipeSaved(recipe.id)) {
+      await removeRecipeFromAllCollections(recipe.id);
+      return;
+    }
+
+    setSelectedRecipeToSave({
+      recipe_id: recipe.id,
+      title: recipe.title,
+      image: recipe.image,
+      ready_in_minutes: recipe.readyInMinutes ?? null,
+      servings: recipe.servings ?? null,
+    });
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -252,19 +266,7 @@ export default function RecipesScreen() {
                       image={recipe.image}
                       variant="carousel"
                       isSaved={isRecipeSaved(recipe.id)}
-                      onBookmarkPress={async () => {
-                        if (isRecipeSaved(recipe.id)) {
-                          await removeRecipeFromAllCollections(recipe.id);
-                          return;
-                        }
-
-                        setSelectedRecipeToSave({
-                          recipe_id: recipe.id,
-                          title: recipe.title,
-                          image: recipe.image,
-                          ready_in_minutes: recipe.readyInMinutes ?? null,
-                        });
-                      }}
+                      onBookmarkPress={() => handleBookmarkPress(recipe)}
                       onPress={() => router.push(`/recipes/${recipe.id}` as any)}
                     />
                   </View>

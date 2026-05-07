@@ -45,6 +45,10 @@ export type RecipeInformation = {
   spoonacularScore?: number;
   extendedIngredients: SpoonacularIngredient[];
   analyzedInstructions: RecipeInstructionGroup[];
+  
+  vegetarian?: boolean;
+  vegan?: boolean;
+  glutenFree?: boolean;
 };
 
 export type PopularRecipe = {

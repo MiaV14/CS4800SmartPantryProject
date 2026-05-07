@@ -245,7 +245,11 @@ export default function ListScreen() {
                 <ListRow
                   key={item.id}
                   title={item.name}
-                  subtitle={formatItemDetails(item.category, item.quantity, item.unit)}
+                  subtitle={formatItemDetails(
+                    item.category,
+                    item.quantity,
+                    item.unit
+                  )}
                   isChecked={item.is_checked}
                   onToggle={() =>
                     toggleGroceryItemChecked(item.id, !item.is_checked)
@@ -424,7 +428,7 @@ function formatItemDetails(
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.porcelain_shadow,
+    backgroundColor: COLORS.honeydew,
   },
   content: {
     padding: 20,
@@ -456,7 +460,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 999,
-    backgroundColor: COLORS.honeydew,
+    backgroundColor: COLORS.porcelain,
     borderWidth: 1,
     borderColor: COLORS.mint_leaf,
   },
@@ -464,7 +468,7 @@ const styles = StyleSheet.create({
     color: COLORS.blue_spruce_shadow,
   },
   listCard: {
-    backgroundColor: COLORS.honeydew,
+    backgroundColor: COLORS.porcelain,
     borderRadius: 16,
     borderWidth: 1.5,
     borderColor: COLORS.mint_leaf,
@@ -492,7 +496,7 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 8,
-    backgroundColor: COLORS.porcelain,
+    backgroundColor: COLORS.honeydew,
     borderWidth: 2,
     borderColor: COLORS.mint_leaf,
     alignItems: 'center',

@@ -1,6 +1,7 @@
 // Color Palette for the app
 
 export const COLORS = {
+    white:  '#FFFFFF',
 
     blue_spruce: '#1F7A6B',
     blue_spruce_shadow: '#044E41',

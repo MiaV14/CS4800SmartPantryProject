@@ -29,6 +29,7 @@ export type NewGroceryListItem = {
 
 export type UserProfile = {
   id: string;
+  full_name: string | null;
   onboarding_completed: boolean;
   diet: string | null;
   intolerances: string[];
@@ -37,6 +38,7 @@ export type UserProfile = {
 };
 
 export type OnboardingProfileUpdate = {
+  full_name: string | null;
   diet: string | null;
   intolerances: string[];
   household_size: number;

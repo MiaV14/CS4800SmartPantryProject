@@ -1,4 +1,5 @@
 import AppButton from '@/components/ui/AppButton';
+import AppInput from '@/components/ui/AppInput';
 import AppText from '@/components/ui/AppText';
 import { COLORS } from '@/constants/colors';
 import { AVATAR_OPTIONS } from '@/constants/onboardingOptions';
@@ -9,7 +10,6 @@ import {
 } from '@/services/profileService';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
-
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -31,6 +31,7 @@ export default function ProfilePictureScreen() {
     householdSize?: string;
   }>();
 
+  const [fullName, setFullName] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState(AVATAR_OPTIONS[0]);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -66,6 +67,13 @@ export default function ProfilePictureScreen() {
   const finishOnboarding = async () => {
     if (!user) return;
 
+    const trimmedName = fullName.trim();
+
+    if (!trimmedName) {
+      Alert.alert('Name required', 'Please enter your name.');
+      return;
+    }
+
     try {
       setIsSaving(true);
 
@@ -74,9 +82,12 @@ export default function ProfilePictureScreen() {
         : selectedAvatar;
 
       await completeOnboarding(user.id, {
+        full_name: trimmedName,
         diet: diet ? diet : null,
         intolerances: parsedIntolerances,
-        household_size: Number.isNaN(parsedHouseholdSize) ? 1 : parsedHouseholdSize,
+        household_size: Number.isNaN(parsedHouseholdSize)
+          ? 1
+          : parsedHouseholdSize,
         avatar_url: avatarUrl,
       });
 
@@ -92,26 +103,38 @@ export default function ProfilePictureScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.content}>
         <Header step={4} />
 
+        {/* NAME INPUT */}
+        <View style={styles.section}>
+          <AppText variant="sectionTitle">Your Name</AppText>
+
+          <AppInput
+            label="Name"
+            placeholder="Enter your name"
+            value={fullName}
+            onChangeText={setFullName}
+          />
+        </View>
+
+        {/* PROFILE IMAGE */}
         <View style={styles.section}>
           <AppText variant="sectionTitle">Profile picture</AppText>
-          <AppText variant="caption" style={styles.helperText}>
-            Choose an avatar or upload a photo.
-          </AppText>
 
           <View style={styles.previewWrapper}>
             {imageUri ? (
               <Image source={{ uri: imageUri }} style={styles.previewImage} />
             ) : (
               <View style={styles.avatarPreview}>
-                <AppText style={styles.avatarPreviewText}>{selectedAvatar}</AppText>
+                <AppText style={styles.avatarPreviewText}>
+                  {selectedAvatar}
+                </AppText>
               </View>
             )}
           </View>
 
-          <AppButton title="Upload Photo" variant="secondary" onPress={pickImage} />
+          <AppButton title="Upload Photo" onPress={pickImage} variant="secondary" />
 
           <View style={styles.avatarGrid}>
             {AVATAR_OPTIONS.map((avatar) => {
@@ -124,7 +147,10 @@ export default function ProfilePictureScreen() {
                     setSelectedAvatar(avatar);
                     setImageUri(null);
                   }}
-                  style={[styles.avatarButton, selected && styles.avatarButtonSelected]}
+                  style={[
+                    styles.avatarButton,
+                    selected && styles.avatarButtonSelected,
+                  ]}
                 >
                   <AppText style={styles.avatarEmoji}>{avatar}</AppText>
                 </Pressable>
@@ -143,18 +169,10 @@ export default function ProfilePictureScreen() {
           <AppButton
             title="← Back"
             variant="secondary"
-            style={styles.backButton}
             onPress={() => router.back()}
-            disabled={isSaving}
           />
 
-          {isSaving && (
-            <ActivityIndicator
-              size="small"
-              color={COLORS.blue_spruce}
-              style={styles.loader}
-            />
-          )}
+          {isSaving && <ActivityIndicator style={{ marginTop: 8 }} />}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -172,37 +190,21 @@ function Header({ step }: { step: number }) {
         <AppText variant="sectionTitle" style={styles.title}>
           Set Up Profile
         </AppText>
-
-        <AppText variant="caption" style={styles.subtitle}>
-          Just a few quick questions
-        </AppText>
       </View>
 
       <View style={styles.progressTrack}>
         <View style={[styles.progressFill, { width: `${step * 25}%` }]} />
       </View>
 
-      <AppText variant="caption" style={styles.stepText}>
-        Step {step} of 4
-      </AppText>
+      <AppText style={styles.stepText}>Step {step} of 4</AppText>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.porcelain,
-  },
-  content: {
-    padding: 24,
-    paddingBottom: 40,
-  },
-  header: {
-    alignItems: 'center',
-    marginTop: 16,
-    marginBottom: 20,
-  },
+  container: { flex: 1, backgroundColor: COLORS.porcelain },
+  content: { padding: 24 },
+  header: { alignItems: 'center', marginBottom: 16 },
   logoBox: {
     width: 72,
     height: 72,
@@ -210,98 +212,47 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.royal_gold,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 14,
   },
-  logoIcon: {
-    fontSize: 30,
-  },
-  title: {
-    color: COLORS.blue_spruce,
-    textAlign: 'center',
-  },
-  subtitle: {
-    marginTop: 4,
-    color: COLORS.mint_leaf,
-    textAlign: 'center',
-  },
+  logoIcon: { fontSize: 30 },
+  title: { marginTop: 10 },
   progressTrack: {
     height: 4,
-    borderRadius: 999,
     backgroundColor: COLORS.porcelain_shadow,
-    overflow: 'hidden',
+    borderRadius: 999,
   },
   progressFill: {
     height: '100%',
     backgroundColor: COLORS.royal_gold,
   },
-  stepText: {
-    marginTop: 8,
-    color: COLORS.mint_leaf,
-  },
-  section: {
-    marginTop: 24,
-    gap: 18,
-  },
-  helperText: {
-    marginTop: -12,
-    color: COLORS.mint_leaf,
-  },
-  previewWrapper: {
-    alignItems: 'center',
-    marginTop: 4,
-  },
+  stepText: { marginTop: 6 },
+  section: { marginTop: 24 },
+  previewWrapper: { alignItems: 'center', marginVertical: 12 },
   avatarPreview: {
-    width: 112,
-    height: 112,
-    borderRadius: 36,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     backgroundColor: COLORS.porcelain_shadow,
-    borderWidth: 2,
-    borderColor: COLORS.royal_gold,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarPreviewText: {
-    fontSize: 52,
-  },
-  previewImage: {
-    width: 112,
-    height: 112,
-    borderRadius: 56,
-    borderWidth: 2,
-    borderColor: COLORS.royal_gold,
-  },
+  avatarPreviewText: { fontSize: 40 },
+  previewImage: { width: 100, height: 100, borderRadius: 50 },
   avatarGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
     justifyContent: 'center',
-    marginTop: 4,
+    gap: 10,
+    marginTop: 12,
   },
   avatarButton: {
-    width: 54,
-    height: 54,
-    borderRadius: 18,
+    padding: 10,
+    borderRadius: 12,
     backgroundColor: COLORS.porcelain_shadow,
-    borderWidth: 2,
-    borderColor: COLORS.porcelain_shadow,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   avatarButtonSelected: {
-    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
     borderColor: COLORS.royal_gold,
   },
-  avatarEmoji: {
-    fontSize: 26,
-  },
-  footer: {
-    marginTop: 32,
-    gap: 12,
-  },
-  backButton: {
-    marginTop: 4,
-  },
-  loader: {
-    marginTop: 8,
-  },
+  avatarEmoji: { fontSize: 24 },
+  footer: { marginTop: 32, gap: 12 },
 });

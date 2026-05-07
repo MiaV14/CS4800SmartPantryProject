@@ -14,6 +14,7 @@ import SaveRecipeModal from '@/components/recipes/SaveRecipeModal';
 import AppText from '@/components/ui/AppText';
 import SearchBar from '@/components/ui/SearchBar';
 import { COLORS } from '@/constants/colors';
+import { useAuth } from '@/context/AuthContext';
 import { useFoodItems } from '@/context/FoodItemsContext';
 import { useRecipeCollections } from '@/context/RecipeCollectionsContext';
 import { fetchRecipeSuggestions } from '@/services/recipeSuggestionService';
@@ -25,6 +26,7 @@ function normalize(value: string) {
 }
 
 export default function ExpiringRecipesScreen() {
+  const { profile, isProfileLoading } = useAuth();
   const { items } = useFoodItems();
   const { isRecipeSaved, removeRecipeFromAllCollections } =
     useRecipeCollections();
@@ -43,6 +45,8 @@ export default function ExpiringRecipesScreen() {
 
   useEffect(() => {
     async function loadRecipes() {
+      if (isProfileLoading) return;
+
       setErrorMessage('');
 
       if (expiringIngredients.length === 0) {
@@ -56,6 +60,11 @@ export default function ExpiringRecipesScreen() {
         const results = await fetchRecipeSuggestions({
           ingredients: expiringIngredients,
           number: 12,
+          preferences: {
+            diet: profile?.diet,
+            intolerances: profile?.intolerances,
+            householdSize: profile?.household_size,
+          },
         });
 
         results.sort((a, b) => {
@@ -76,7 +85,7 @@ export default function ExpiringRecipesScreen() {
     }
 
     loadRecipes();
-  }, [expiringIngredients]);
+  }, [expiringIngredients, profile, isProfileLoading]);
 
   const filteredRecipes = useMemo(() => {
     const query = normalize(searchQuery);
@@ -198,18 +207,7 @@ export default function ExpiringRecipesScreen() {
                   badgeLabel={`Uses ${recipe.usedIngredientCount}`}
                   image={recipe.image}
                   isSaved={isRecipeSaved(recipe.id)}
-                  onBookmarkPress={async () => {
-                    if (isRecipeSaved(recipe.id)) {
-                      await removeRecipeFromAllCollections(recipe.id);
-                      return;
-                    }
-
-                    setSelectedRecipeToSave({
-                      recipe_id: recipe.id,
-                      title: recipe.title,
-                      image: recipe.image,
-                    });
-                  }}
+                  onBookmarkPress={() => handleBookmarkPress(recipe)}
                   onPress={() => router.push(`/recipes/${recipe.id}` as any)}
                 />
               </View>
@@ -224,7 +222,7 @@ export default function ExpiringRecipesScreen() {
           <View style={styles.emptyState}>
             <AppText variant="cardTitle">No recipes found</AppText>
             <AppText variant="caption" style={styles.emptyText}>
-              Try another search or add more expiring ingredients.
+              Try another search, change preferences, or add more expiring items.
             </AppText>
           </View>
         ) : null}
