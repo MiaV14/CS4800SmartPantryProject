@@ -3,7 +3,7 @@ import AppText from '@/components/ui/AppText';
 import { COLORS } from '@/constants/colors';
 import { useAuth } from '@/context/AuthContext';
 import { router } from 'expo-router';
-import { Image, StyleSheet, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function SettingsScreen() {
@@ -19,7 +19,10 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         <AppText variant="sectionTitle" style={styles.title}>
           Settings
         </AppText>
@@ -95,7 +98,7 @@ export default function SettingsScreen() {
             variant="secondary"
           />
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -120,8 +123,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.honeydew,
   },
   content: {
-    flex: 1,
     padding: 20,
+    paddingBottom: 120,
     gap: 22,
   },
   title: {
